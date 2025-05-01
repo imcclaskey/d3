@@ -1,0 +1,40 @@
+# Go Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# The binary produced by 'make build' or 'go build'
+i3
+
+# Test coverage
+*.out
+*.test
+
+# Dependency directories (if you vendored)
+# vendor/
+
+# IDE / Editor directories
+.idea/
+.vscode/
+*.swp
+*~
+*.sublime-*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+
+# Cursor internal files (already ignored in .cursor/rules/i3/.gitignore, but good practice)
+/.cursor/out/
+/.cursor/debug/ 
