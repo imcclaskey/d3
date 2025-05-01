@@ -40,15 +40,4 @@ jobs:
             build/i3-darwin-arm64
             build/i3-linux-amd64
             build/i3-linux-arm64
-            build/i3-windows-amd64.exe
-
-      - name: Upload binaries as workflow artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: i3-binaries
-          path: |
-            build/i3-darwin-amd64
-            build/i3-darwin-arm64
-            build/i3-linux-amd64
-            build/i3-linux-arm64
             build/i3-windows-amd64.exe 
