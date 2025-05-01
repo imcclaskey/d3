@@ -1,19 +1,28 @@
-.PHONY: build install clean test release version-patch version-minor version-major
+.PHONY: build install clean test release version-patch version-minor version-major print-version
 
 # Binary name
 BINARY_NAME=i3
 OUTPUT_DIR=bin
 BUILD_DIR=build
-VERSION=$(shell grep 'const Version = ' internal/version/version.go | sed 's/.*"\(.*\)".*/\1/')
 VERSION_FILE=internal/version/version.go
 
-# Version components
+# Extract version components
+VERSION=$(shell grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/')
 VERSION_MAJOR=$(shell echo $(VERSION) | cut -d. -f1)
 VERSION_MINOR=$(shell echo $(VERSION) | cut -d. -f2)
 VERSION_PATCH=$(shell echo $(VERSION) | cut -d. -f3)
 
+# New versions
+NEW_VERSION_PATCH=$(VERSION_MAJOR).$(VERSION_MINOR).$(shell expr $(VERSION_PATCH) + 1)
+NEW_VERSION_MINOR=$(VERSION_MAJOR).$(shell expr $(VERSION_MINOR) + 1).0
+NEW_VERSION_MAJOR=$(shell expr $(VERSION_MAJOR) + 1).0.0
+
 # Version flags
 VERSION_FLAGS=-ldflags "-X github.com/imcclaskey/i3/internal/version.Version=$(VERSION)"
+
+# Print current version
+print-version:
+	@echo "Current version: $(VERSION)"
 
 # Build the binary
 build:
@@ -50,20 +59,20 @@ build-all: clean
 
 # Version bumping targets
 version-patch:
-	@echo "Bumping patch version: $(VERSION) -> $(VERSION_MAJOR).$(VERSION_MINOR).$$(( $(VERSION_PATCH) + 1 ))"
-	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(VERSION_MAJOR).$(VERSION_MINOR).$$(( $(VERSION_PATCH) + 1 ))"/g' $(VERSION_FILE)
+	@echo "Bumping patch version: $(VERSION) -> $(NEW_VERSION_PATCH)"
+	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(NEW_VERSION_PATCH)"/g' $(VERSION_FILE)
 	@rm -f $(VERSION_FILE).bak
 	@$(MAKE) post-version
 
 version-minor:
-	@echo "Bumping minor version: $(VERSION) -> $(VERSION_MAJOR).$$(( $(VERSION_MINOR) + 1 )).0"
-	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(VERSION_MAJOR).$$(( $(VERSION_MINOR) + 1 )).0"/g' $(VERSION_FILE)
+	@echo "Bumping minor version: $(VERSION) -> $(NEW_VERSION_MINOR)"
+	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(NEW_VERSION_MINOR)"/g' $(VERSION_FILE)
 	@rm -f $(VERSION_FILE).bak
 	@$(MAKE) post-version
 
 version-major:
-	@echo "Bumping major version: $(VERSION) -> $$(( $(VERSION_MAJOR) + 1 )).0.0"
-	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$$(( $(VERSION_MAJOR) + 1 )).0.0"/g' $(VERSION_FILE)
+	@echo "Bumping major version: $(VERSION) -> $(NEW_VERSION_MAJOR)"
+	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(NEW_VERSION_MAJOR)"/g' $(VERSION_FILE)
 	@rm -f $(VERSION_FILE).bak
 	@$(MAKE) post-version
 
@@ -86,4 +95,9 @@ post-version: build test
 release: build-all
 	@echo "Creating release v$(VERSION)"
 	@git tag -a v$(VERSION) -m "Release v$(VERSION)"
-	@echo "Tag created. Run 'git push origin v$(VERSION)' to trigger the GitHub workflow" 
+	@echo "Tag created. Run 'git push origin v$(VERSION)' to trigger the GitHub workflow"
+
+# Push new version
+push-release:
+	@echo "Pushing to GitHub..."
+	@git push origin main && git push origin --tags 
