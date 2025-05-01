@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	
-	"github.com/imcclaskey/i3/internal/errors"
 )
 
 // Init implements an initialization command
@@ -22,12 +20,11 @@ func NewInit(force bool) Init {
 }
 
 // Run implements the Command interface
-func (i Init) Run(ctx context.Context, cfg Config) (string, error) {
+func (i Init) Run(ctx context.Context, cfg Config) (Result, error) {
 	// Check for Cursor integration
 	cursorRulesDir := filepath.Join(cfg.WorkspaceRoot, ".cursor", "rules")
 	if _, err := os.Stat(cursorRulesDir); os.IsNotExist(err) {
-		return "", errors.WithSuggestion(errors.ErrCursorIntegration, 
-			"This command must be run in a Cursor project")
+		return Result{}, fmt.Errorf("cursor integration issue (suggestion: This command must be run in a Cursor project)")
 	}
 	
 	// Check if i3 is already initialized
@@ -37,8 +34,7 @@ func (i Init) Run(ctx context.Context, cfg Config) (string, error) {
 		
 		// If already initialized and not force, return error
 		if !i.Force {
-			return "", errors.WithSuggestion(errors.ErrAlreadyInitialized,
-				"Use --force to reinitialize (this will overwrite existing files)")
+			return Result{}, fmt.Errorf("i3 is already initialized (suggestion: Use --force to reinitialize (this will overwrite existing files))")
 		}
 	}
 	
@@ -51,23 +47,23 @@ func (i Init) Run(ctx context.Context, cfg Config) (string, error) {
 	
 	for _, dir := range directories {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return "", errors.Wrap(err, fmt.Sprintf("failed to create directory %s", dir))
+			return Result{}, fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
 	
 	// Create required files
 	if err := createRequiredFiles(cfg.I3Dir, i.Force); err != nil {
-		return "", errors.Wrap(err, "failed to create required files")
+		return Result{}, fmt.Errorf("failed to create required files: %w", err)
 	}
 	
 	// Create i3 .gitignore files
 	if err := createGitignoreFiles(cfg.I3Dir, cursorRulesDir, i.Force); err != nil {
-		return "", errors.Wrap(err, "failed to create .gitignore files")
+		return Result{}, fmt.Errorf("failed to create .gitignore files: %w", err)
 	}
 	
 	// Initialize session
 	if err := cfg.Session.Stop(); err != nil {
-		return "", errors.Wrap(err, "failed to initialize session")
+		return Result{}, fmt.Errorf("failed to initialize session: %w", err)
 	}
 	
 	// Return success message with appropriate text
@@ -76,7 +72,7 @@ func (i Init) Run(ctx context.Context, cfg Config) (string, error) {
 		message = "i3 has been reinitialized successfully"
 	}
 	
-	return message, nil
+	return NewResult(message, nil, nil), nil
 }
 
 // createRequiredFiles creates the required files with empty content
@@ -122,13 +118,12 @@ session.json
 func createFileIfNotExists(filePath, content string, force bool) error {
 	// Check if file exists
 	if _, err := os.Stat(filePath); err == nil && !force {
-		return errors.WithDetails(errors.ErrAlreadyInitialized, 
-			fmt.Sprintf("file already exists: %s", filePath))
+		return fmt.Errorf("i3 is already initialized: file already exists: %s", filePath)
 	}
 	
 	// Create or overwrite the file
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("failed to write to %s", filePath))
+		return fmt.Errorf("failed to write to %s: %w", filePath, err)
 	}
 	
 	return nil

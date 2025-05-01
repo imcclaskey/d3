@@ -35,8 +35,8 @@ func New(workspaceRoot string) Config {
 
 // Command defines the interface for all i3 commands
 type Command interface {
-	// Run executes the command and returns a result message or an error
-	Run(ctx context.Context, cfg Config) (string, error)
+	// Run executes the command and returns a result or an error
+	Run(ctx context.Context, cfg Config) (Result, error)
 }
 
 // Result holds the result of a command execution

@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
-	"strings"
 	
 	"github.com/imcclaskey/i3/internal/creator"
-	"github.com/imcclaskey/i3/internal/errors"
 	"github.com/imcclaskey/i3/internal/rulegen"
 	"github.com/imcclaskey/i3/internal/validation"
 )
@@ -29,19 +27,22 @@ func NewMove(phase, feature string, exitSession bool) Move {
 }
 
 // Run implements the Command interface
-func (m Move) Run(ctx context.Context, cfg Config) (string, error) {
+func (m Move) Run(ctx context.Context, cfg Config) (Result, error) {
 	// Validate the phase name
 	if err := validation.Phase(m.Phase); err != nil {
-		return "", err
+		// Return zero Result on error
+		return Result{}, err
 	}
 	
 	// Create i3 core structure
 	if err := creator.EnsureDirectories(cfg.I3Dir); err != nil {
-		return "", err
+		// Return zero Result on error
+		return Result{}, err
 	}
 	
 	if err := creator.EnsureBasicFiles(cfg.I3Dir); err != nil {
-		return "", err
+		// Return zero Result on error
+		return Result{}, err
 	}
 	
 	// Special case: setup phase doesn't require a feature
@@ -49,14 +50,13 @@ func (m Move) Run(ctx context.Context, cfg Config) (string, error) {
 		// Try to get the feature from the current session
 		currentFeature, err := cfg.Session.Feature()
 		if err != nil {
-			return "", errors.Wrap(err, "failed to get current feature")
+			// Return zero Result on error
+			return Result{}, fmt.Errorf("failed to get current feature: %w", err)
 		}
 		
 		if currentFeature == "" {
-			return "", errors.WithSuggestion(
-				errors.New("no feature specified"),
-				"specify a feature name for non-setup phases",
-			)
+			// Return zero Result on error
+			return Result{}, fmt.Errorf("no feature specified (suggestion: specify a feature name for non-setup phases)")
 		}
 		
 		m.Feature = currentFeature
@@ -65,30 +65,36 @@ func (m Move) Run(ctx context.Context, cfg Config) (string, error) {
 	// For non-setup phases, create feature files
 	if m.Phase != "setup" {
 		if err := creator.EnsurePhaseFiles(cfg.FeaturesDir, m.Feature, m.Phase); err != nil {
-			return "", err
+			// Return zero Result on error
+			return Result{}, err
 		}
 	}
 	
 	// Exit current session if requested
 	if m.ExitSession {
 		exitCmd := NewExit()
+		// Exit command now returns Result, ignore it here or log it if needed
 		if _, err := exitCmd.Run(ctx, cfg); err != nil {
-			return "", err
+			// Return zero Result on error
+			return Result{}, err // Propagate error
 		}
 	}
 	
 	// Update session
 	if err := cfg.Session.Start(m.Feature); err != nil {
-		return "", errors.Wrap(err, "failed to start session")
+		// Return zero Result on error
+		return Result{}, fmt.Errorf("failed to start session: %w", err)
 	}
 	
 	if err := cfg.Session.SetPhase(m.Phase); err != nil {
-		return "", errors.Wrap(err, "failed to set phase")
+		// Return zero Result on error
+		return Result{}, fmt.Errorf("failed to set phase: %w", err)
 	}
 	
 	// Generate cursor rules for the current phase/feature
 	if err := generateRules(cfg, m.Phase, m.Feature); err != nil {
-		return "", errors.Wrap(err, "failed to generate cursor rules")
+		// Return zero Result on error
+		return Result{}, fmt.Errorf("failed to generate cursor rules: %w", err)
 	}
 	
 	// Generate success message
@@ -99,11 +105,15 @@ func (m Move) Run(ctx context.Context, cfg Config) (string, error) {
 	
 	// Collect any content warnings
 	warnings := validation.ContentWarnings(cfg.I3Dir)
-	if len(warnings) > 0 {
-		message = fmt.Sprintf("%s\n\nWarnings:\n%s", message, strings.Join(warnings, "\n"))
-	}
+	// Do not append warnings to message anymore
+	/*
+		if len(warnings) > 0 {
+			message = fmt.Sprintf("%s\n\nWarnings:\n%s", message, strings.Join(warnings, "\n"))
+		}
+	*/
 	
-	return message, nil
+	// Return Result struct with message and warnings separated
+	return NewResult(message, nil, warnings), nil
 }
 
 // generateRules generates cursor rules for the given phase and feature

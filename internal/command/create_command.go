@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	
-	"github.com/imcclaskey/i3/internal/errors"
 	"github.com/imcclaskey/i3/internal/validation"
 )
 
@@ -23,46 +22,41 @@ func NewCreate(feature string) Create {
 }
 
 // Run implements the Command interface
-func (c Create) Run(ctx context.Context, cfg Config) (string, error) {
+func (c Create) Run(ctx context.Context, cfg Config) (Result, error) {
 	// Validate i3 is initialized
 	if err := validation.Init(cfg.I3Dir); err != nil {
-		return "", err
+		return Result{}, err
 	}
 	
 	// Validate feature name
 	if c.Feature == "" {
-		return "", errors.WithSuggestion(
-			errors.New("feature name is required"),
-			"provide a name for the feature to create",
-		)
+		return Result{}, fmt.Errorf("feature name is required (suggestion: provide a name for the feature to create)")
 	}
 	
 	// Check if the feature already exists
 	featureDir := filepath.Join(cfg.FeaturesDir, c.Feature)
 	if _, err := os.Stat(featureDir); err == nil {
-		return "", errors.WithSuggestion(
-			errors.Errorf("feature '%s' already exists", c.Feature),
-			"choose a different name or use 'i3 move' to enter it",
-		)
+		return Result{}, fmt.Errorf("feature '%s' already exists (suggestion: choose a different name or use 'i3 move' to enter it)", c.Feature)
 	}
 	
 	// Create feature directory
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
-		return "", errors.Wrap(err, "failed to create feature directory")
+		return Result{}, fmt.Errorf("failed to create feature directory: %w", err)
 	}
 	
 	// Create feature files
 	if err := createFeatureFiles(featureDir); err != nil {
-		return "", errors.Wrap(err, "failed to create feature files")
+		return Result{}, fmt.Errorf("failed to create feature files: %w", err)
 	}
 	
 	// Always enter ideation phase
 	move := NewMove("ideation", c.Feature, true)
 	if _, err := move.Run(ctx, cfg); err != nil {
-		return "", errors.Wrap(err, "failed to enter ideation phase")
+		return Result{}, fmt.Errorf("failed to enter ideation phase: %w", err)
 	}
 	
-	return fmt.Sprintf("Created feature '%s' and entered ideation phase", c.Feature), nil
+	message := fmt.Sprintf("Created feature '%s' and entered ideation phase", c.Feature)
+	return NewResult(message, nil, nil), nil
 }
 
 // createFeatureFiles creates the necessary files for a new feature

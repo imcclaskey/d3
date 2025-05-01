@@ -1,12 +1,11 @@
 package validation
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	
-	"github.com/imcclaskey/i3/internal/errors"
 )
 
 // Phase names that are valid in i3
@@ -30,7 +29,7 @@ func Init(i3Dir string) error {
 			if base != filepath.Base(i3Dir) {
 				suggestion = "run 'i3 init --force' to reinitialize"
 			}
-			return errors.WithSuggestion(errors.ErrNotInitialized, suggestion)
+			return fmt.Errorf("i3 is not initialized (suggestion: %s)", suggestion)
 		}
 	}
 	
@@ -46,16 +45,14 @@ func Phase(name string) error {
 	}
 	
 	validStr := strings.Join(ValidPhases, ", ")
-	return errors.WithDetails(errors.ErrInvalidPhase, 
-		"must be one of: "+validStr)
+	return fmt.Errorf("invalid phase name: must be one of: %s", validStr)
 }
 
 // Feature checks if a feature exists with all required files
 func Feature(featuresDir, name string) error {
 	featureDir := filepath.Join(featuresDir, name)
 	if _, err := os.Stat(featureDir); os.IsNotExist(err) {
-		return errors.WithSuggestion(errors.ErrFeatureNotFound, 
-			"use 'i3 create "+name+"' to create it")
+		return fmt.Errorf("feature not found (suggestion: use 'i3 create %s' to create it)", name)
 	}
 	
 	// Check for required files
@@ -70,9 +67,7 @@ func Feature(featuresDir, name string) error {
 	}
 	
 	if len(missing) > 0 {
-		return errors.WithSuggestion(errors.ErrMissingFile, 
-			"missing files: "+strings.Join(missing, ", ")+
-			". You may need to recreate the feature")
+		return fmt.Errorf("required file is missing (suggestion: missing files: %s. You may need to recreate the feature)", strings.Join(missing, ", "))
 	}
 	
 	return nil
@@ -93,13 +88,6 @@ func ContentWarnings(i3Dir string) []string {
 		if empty {
 			warnings = append(warnings, warning)
 		}
-	}
-	
-	// Check for Cursor integration
-	workspaceRoot := filepath.Dir(i3Dir)
-	i3MdcFile := filepath.Join(workspaceRoot, ".cursor", "rules", "i3.mdc")
-	if _, err := os.Stat(i3MdcFile); os.IsNotExist(err) {
-		warnings = append(warnings, "Cursor integration file is missing")
 	}
 	
 	return warnings

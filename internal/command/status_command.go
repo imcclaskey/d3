@@ -3,9 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
-	"strings"
 	
-	"github.com/imcclaskey/i3/internal/errors"
 	"github.com/imcclaskey/i3/internal/validation"
 )
 
@@ -20,16 +18,18 @@ func NewStatus() Status {
 }
 
 // Run implements the Command interface
-func (s Status) Run(ctx context.Context, cfg Config) (string, error) {
+func (s Status) Run(ctx context.Context, cfg Config) (Result, error) {
 	// Validate i3 is initialized
 	if err := validation.Init(cfg.I3Dir); err != nil {
-		return "", err
+		// Return zero Result on error
+		return Result{}, err
 	}
 	
 	// Get current session information
 	active, feature, phase, err := cfg.Session.Status()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get session status")
+		// Return zero Result on error
+		return Result{}, fmt.Errorf("failed to get session status: %w", err)
 	}
 	
 	// Format status message
@@ -50,9 +50,13 @@ func (s Status) Run(ctx context.Context, cfg Config) (string, error) {
 	
 	// Collect any warnings and append to message
 	warnings := validation.ContentWarnings(cfg.I3Dir)
-	if len(warnings) > 0 {
-		message += "\n\nWarnings:\n" + strings.Join(warnings, "\n")
-	}
+	// Do not append warnings to message anymore
+	/*
+		if len(warnings) > 0 {
+			message += "\n\nWarnings:\n" + strings.Join(warnings, "\n")
+		}
+	*/
 	
-	return message, nil
+	// Return Result struct with message and warnings separated
+	return NewResult(message, nil, warnings), nil
 } 

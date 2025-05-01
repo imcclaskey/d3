@@ -2,11 +2,10 @@ package session
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	
-	"github.com/imcclaskey/i3/internal/errors"
 )
 
 // Session represents the i3 session state
@@ -86,7 +85,7 @@ func (m *Manager) Start(feature string) error {
 func (m *Manager) SetPhase(phase string) error {
 	s, _ := m.Get()
 	if !s.Active {
-		return errors.ErrNoActiveSession
+		return errors.New("no active session")
 	}
 	s.Phase = phase
 	return m.Save(s)
@@ -141,5 +140,8 @@ func (m *Manager) Phase() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if !s.Active {
+		return "", errors.New("no active session")
+	}
 	return s.Phase, nil
-} 
+}

@@ -2,10 +2,9 @@
 package creator
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/imcclaskey/i3/internal/errors"
 )
 
 // EnsureDirectories creates essential directories if they don't exist
@@ -14,7 +13,7 @@ func EnsureDirectories(i3Dir string) error {
 	
 	// Only create the base i3 directory and features directory
 	if err := os.MkdirAll(featuresDir, 0755); err != nil {
-		return errors.Wrap(err, "failed to create directory")
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 	
 	return nil
@@ -32,7 +31,7 @@ func EnsureBasicFiles(i3Dir string) error {
 		// Create file only if it doesn't exist (idempotent)
 		if _, err := os.Stat(file); os.IsNotExist(err) {
 			if err := os.WriteFile(file, []byte(""), 0644); err != nil {
-				return errors.Wrap(err, "failed to create file")
+				return fmt.Errorf("failed to create file: %w", err)
 			}
 		}
 	}
@@ -46,7 +45,7 @@ func EnsurePhaseFiles(featuresDir, feature, phase string) error {
 	
 	// Create feature directory
 	if err := os.MkdirAll(featureDir, 0755); err != nil {
-		return errors.Wrap(err, "failed to create feature directory")
+		return fmt.Errorf("failed to create feature directory: %w", err)
 	}
 	
 	// Define files needed for each phase
@@ -69,7 +68,7 @@ func EnsurePhaseFiles(featuresDir, feature, phase string) error {
 		path := filepath.Join(featureDir, filename)
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			if err := os.WriteFile(path, []byte(""), 0644); err != nil {
-				return errors.Wrap(err, "failed to create file")
+				return fmt.Errorf("failed to create file: %w", err)
 			}
 		}
 	}

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"path/filepath"
 	
-	"github.com/imcclaskey/i3/internal/errors"
 	"github.com/imcclaskey/i3/internal/rulegen"
 )
 
@@ -23,26 +22,26 @@ func NewRefresh(feature string) Refresh {
 }
 
 // Run implements the Command interface
-func (r Refresh) Run(ctx context.Context, cfg Config) (string, error) {
+func (r Refresh) Run(ctx context.Context, cfg Config) (Result, error) {
 	// Get current feature if not specified
 	feature := r.Feature
 	if feature == "" {
 		var err error
 		feature, err = cfg.Session.Feature()
 		if err != nil {
-			return "", errors.Wrap(err, "failed to get current feature")
+			return Result{}, fmt.Errorf("failed to get current feature: %w", err)
 		}
 	}
 	
 	// Get current phase
 	phase, err := cfg.Session.Phase()
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get current phase")
+		return Result{}, fmt.Errorf("failed to get current phase: %w", err)
 	}
 	
 	// Check if we have an active session
 	if phase == "" {
-		return "No active session to refresh.", nil
+		return NewResult("No active session to refresh.", nil, nil), nil
 	}
 	
 	// Regenerate cursor rules
@@ -51,8 +50,9 @@ func (r Refresh) Run(ctx context.Context, cfg Config) (string, error) {
 	
 	ruleGen := rulegen.NewGenerator(templatesDir, outputDir)
 	if err := ruleGen.CreateRuleFiles(phase, feature); err != nil {
-		return "", errors.Wrap(err, "failed to regenerate cursor rules")
+		return Result{}, fmt.Errorf("failed to regenerate cursor rules: %w", err)
 	}
 	
-	return fmt.Sprintf("Refreshed rules for %s phase of feature '%s'.", phase, feature), nil
+	message := fmt.Sprintf("Refreshed rules for %s phase of feature '%s'.", phase, feature)
+	return NewResult(message, nil, nil), nil
 } 
