@@ -6,9 +6,6 @@ bin/
 *.so
 *.dylib
 
-# The binary produced by 'make build' or 'go build'
-i3
-
 # Test coverage
 *.out
 *.test
