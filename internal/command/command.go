@@ -4,8 +4,6 @@ package command
 import (
 	"context"
 	"path/filepath"
-	
-	"github.com/imcclaskey/i3/internal/session"
 )
 
 // Config holds common configuration used by all commands
@@ -16,20 +14,21 @@ type Config struct {
 	I3Dir string
 	// FeaturesDir is the path to the features directory
 	FeaturesDir string
-	// Session provides access to session operations
-	Session *session.Manager
+	// CursorRulesDir is the path to the cursor rules directory
+	CursorRulesDir string
 }
 
 // New creates a configuration with all needed dependencies
 func New(workspaceRoot string) Config {
 	i3Dir := filepath.Join(workspaceRoot, ".i3")
 	featuresDir := filepath.Join(i3Dir, "features")
+	cursorRulesDir := filepath.Join(workspaceRoot, ".cursor", "rules")
 	
 	return Config{
-		WorkspaceRoot: workspaceRoot,
-		I3Dir:         i3Dir,
-		FeaturesDir:   featuresDir,
-		Session:       session.NewManager(i3Dir),
+		WorkspaceRoot:  workspaceRoot,
+		I3Dir:          i3Dir,
+		FeaturesDir:    featuresDir,
+		CursorRulesDir: cursorRulesDir,
 	}
 }
 

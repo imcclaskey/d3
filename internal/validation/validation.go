@@ -16,7 +16,7 @@ func Init(i3Dir string) error {
 	paths := []string{
 		i3Dir,
 		filepath.Join(i3Dir, "features"),
-		filepath.Join(i3Dir, "session.json"),
+		filepath.Join(i3Dir, "context.json"),
 		filepath.Join(i3Dir, "project.md"),
 		filepath.Join(i3Dir, "tech.md"),
 	}
@@ -27,7 +27,7 @@ func Init(i3Dir string) error {
 			base := filepath.Base(path)
 			suggestion := "run 'i3 init'"
 			if base != filepath.Base(i3Dir) {
-				suggestion = "run 'i3 init --force' to reinitialize"
+				suggestion = "run 'i3 init --clean' to reinitialize"
 			}
 			return fmt.Errorf("i3 is not initialized (suggestion: %s)", suggestion)
 		}

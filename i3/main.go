@@ -18,8 +18,7 @@ var (
 	}
 	
 	// Command flags
-	forceFlag      bool
-	featureFlag    string
+	cleanFlag bool
 )
 
 func init() {
@@ -31,184 +30,106 @@ func initCommands() {
 	// Create command
 	createCmd := &cobra.Command{
 		Use:   "create <feature>",
-		Short: "Create a new feature",
+		Short: "Create a new feature and set it as the current context",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			// Get workspace root
-			workspaceRoot := getWorkspaceRoot()
-			
-			// Create command config
-			cfg := command.New(workspaceRoot)
-			
-			// Parse arguments
-			featureName := args[0]
-			
-			// Create and execute command
-			create := command.NewCreate(featureName)
-			message, err := create.Run(context.Background(), cfg)
-			
-			// Handle result
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			
-			// Print success message
-			fmt.Println(message)
+			runCommand(command.NewCreate(args[0]))
 		},
 	}
 	
 	// Init command
 	initCmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize i3 in the current workspace",
+		Short: "Initialize i3 in the current workspace (clears context)",
 		Run: func(cmd *cobra.Command, args []string) {
-			// Get workspace root
-			workspaceRoot := getWorkspaceRoot()
-			
-			// Create command config
-			cfg := command.New(workspaceRoot)
-			
-			// Create and execute command
-			init := command.NewInit(forceFlag)
-			message, err := init.Run(context.Background(), cfg)
-			
-			// Handle result
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			
-			// Print success message
-			fmt.Println(message)
+			runCommand(command.NewInit(cleanFlag))
 		},
 	}
 	
 	// Add flags to init command
-	initCmd.Flags().BoolVar(&forceFlag, "force", false, "Force re-initialization (overwrites existing files)")
+	initCmd.Flags().BoolVar(&cleanFlag, "clean", false, "Perform a clean initialization (remove existing files)")
 	
-	// Move command
-	moveCmd := &cobra.Command{
-		Use:   "move <phase> [feature]",
-		Short: "Move to a different phase or feature",
-		Args:  cobra.RangeArgs(1, 2),
+	// Enter command
+	enterCmd := &cobra.Command{
+		Use:   "enter <feature>",
+		Short: "Set the current feature context",
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			// Get workspace root
-			workspaceRoot := getWorkspaceRoot()
-			
-			// Create command config
-			cfg := command.New(workspaceRoot)
-			
-			// Parse arguments
-			phase := args[0]
-			var feature string
-			if len(args) > 1 {
-				feature = args[1]
-			}
-			
-			// Create and execute command
-			move := command.NewMove(phase, feature, false)
-			message, err := move.Run(context.Background(), cfg)
-			
-			// Handle result
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			
-			// Print success message
-			fmt.Println(message)
+			runCommand(command.NewEnter(args[0]))
 		},
 	}
 	
-	// Exit command
-	exitCmd := &cobra.Command{
-		Use:   "exit",
-		Short: "Exit the current session",
+	// Leave command
+	leaveCmd := &cobra.Command{
+		Use:   "leave",
+		Short: "Leave the current feature context",
+		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Get workspace root
-			workspaceRoot := getWorkspaceRoot()
-			
-			// Create command config
-			cfg := command.New(workspaceRoot)
-			
-			// Create and execute command
-			exit := command.NewExit()
-			message, err := exit.Run(context.Background(), cfg)
-			
-			// Handle result
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			
-			// Print success message
-			fmt.Println(message)
+			runCommand(command.NewLeave())
+		},
+	}
+	
+	// Phase command
+	phaseCmd := &cobra.Command{
+		Use:   "phase <phase>",
+		Short: "Set the current phase within the active feature context",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			runCommand(command.NewPhase(args[0]))
 		},
 	}
 	
 	// Status command
 	statusCmd := &cobra.Command{
 		Use:   "status",
-		Short: "Show current i3 status",
+		Short: "Show current i3 feature and phase context",
+		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Get workspace root
-			workspaceRoot := getWorkspaceRoot()
-			
-			// Create command config
-			cfg := command.New(workspaceRoot)
-			
-			// Create and execute command
-			status := command.NewStatus()
-			message, err := status.Run(context.Background(), cfg)
-			
-			// Handle result
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			
-			// Print success message
-			fmt.Println(message)
+			runCommand(command.NewStatus())
 		},
 	}
 	
 	// Refresh command
 	refreshCmd := &cobra.Command{
 		Use:   "refresh",
-		Short: "Refresh rules for the current session",
+		Short: "Ensure necessary i3 files and directories exist",
+		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Get workspace root
-			workspaceRoot := getWorkspaceRoot()
-			
-			// Create command config
-			cfg := command.New(workspaceRoot)
-			
-			// Create and execute command
-			refresh := command.NewRefresh(featureFlag)
-			message, err := refresh.Run(context.Background(), cfg)
-			
-			// Handle result
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				os.Exit(1)
-			}
-			
-			// Print success message
-			fmt.Println(message)
+			// NewRefresh takes no arguments now
+			runCommand(command.NewRefresh())
 		},
 	}
-	
-	// Add flags to refresh command
-	refreshCmd.Flags().StringVar(&featureFlag, "feature", "", "Feature to refresh (defaults to current feature)")
 	
 	// Add all commands to root
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(initCmd)
-	rootCmd.AddCommand(moveCmd)
-	rootCmd.AddCommand(exitCmd)
+	rootCmd.AddCommand(enterCmd)
+	rootCmd.AddCommand(leaveCmd)
+	rootCmd.AddCommand(phaseCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(refreshCmd)
+}
+
+// runCommand is a helper to reduce boilerplate in command Run functions
+func runCommand(cmd command.Command) {
+	workspaceRoot := getWorkspaceRoot()
+	cfg := command.New(workspaceRoot)
+	result, err := cmd.Run(context.Background(), cfg)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Print success message (use Result.Message)
+	if result.Message != "" {
+		fmt.Println(result.Message)
+	}
+	// Optionally print warnings
+	// for _, warning := range result.Warnings {
+	// 	fmt.Fprintf(os.Stderr, "Warning: %s\n", warning)
+	// }
+	// Optionally handle/print result.Data
 }
 
 // getWorkspaceRoot gets the workspace root directory

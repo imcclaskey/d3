@@ -4,55 +4,56 @@ package command
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	
-	"github.com/imcclaskey/i3/internal/rulegen"
+
+	i3context "github.com/imcclaskey/i3/internal/context"
+	"github.com/imcclaskey/i3/internal/rules"
+	"github.com/imcclaskey/i3/internal/workspace"
+	"github.com/imcclaskey/i3/internal/validation"
 )
 
-// Refresh regenerates cursor rules for the current session
-type Refresh struct {
-	Feature string // Optional feature to refresh (overrides current feature)
-}
+// Refresh ensures necessary i3 files and directories exist.
+type Refresh struct{}
 
-// NewRefresh creates a refresh command
-func NewRefresh(feature string) Refresh {
-	return Refresh{
-		Feature: feature,
-	}
+// NewRefresh creates a new Refresh command
+func NewRefresh() Refresh {
+	return Refresh{}
 }
 
 // Run implements the Command interface
 func (r Refresh) Run(ctx context.Context, cfg Config) (Result, error) {
-	// Get current feature if not specified
-	feature := r.Feature
-	if feature == "" {
-		var err error
-		feature, err = cfg.Session.Feature()
-		if err != nil {
-			return Result{}, fmt.Errorf("failed to get current feature: %w", err)
+	// 1. Validate initialization
+	if err := validation.Init(cfg.I3Dir); err != nil {
+		return Result{}, err
+	}
+
+	// 2. Ensure base directories exist (idempotent)
+	if err := workspace.EnsureDirectories(cfg.I3Dir); err != nil {
+		return Result{}, fmt.Errorf("failed to ensure base directories: %w", err)
+	}
+
+	// 3. Ensure basic project files exist (idempotent)
+	if err := workspace.EnsureBasicFiles(cfg.I3Dir); err != nil {
+		return Result{}, fmt.Errorf("failed to ensure basic files: %w", err)
+	}
+
+	// 4. Ensure files for the *current* context (if any) exist
+	currentCtx, err := i3context.LoadContext(cfg.I3Dir)
+	if err != nil {
+		return Result{}, fmt.Errorf("loading context for refresh: %w", err)
+	}
+
+	if currentCtx.Feature != "" && currentCtx.Phase != "" {
+		if err := workspace.EnsurePhaseFiles(cfg.FeaturesDir, currentCtx.Feature, currentCtx.Phase); err != nil {
+			return Result{}, fmt.Errorf("failed to ensure files for phase %s in feature %s: %w",
+				currentCtx.Phase, currentCtx.Feature, err)
+		}
+		
+		// 5. Ensure rule files are generated
+		ruleGenerator := rules.NewRuleFileGenerator("", cfg.CursorRulesDir)
+		if err := ruleGenerator.EnsureRuleFiles(currentCtx.Phase, currentCtx.Feature); err != nil {
+			return Result{}, fmt.Errorf("ensuring rule files: %w", err)
 		}
 	}
-	
-	// Get current phase
-	phase, err := cfg.Session.Phase()
-	if err != nil {
-		return Result{}, fmt.Errorf("failed to get current phase: %w", err)
-	}
-	
-	// Check if we have an active session
-	if phase == "" {
-		return NewResult("No active session to refresh.", nil, nil), nil
-	}
-	
-	// Regenerate cursor rules
-	templatesDir := filepath.Join(cfg.I3Dir, "templates")
-	outputDir := filepath.Join(cfg.WorkspaceRoot, ".cursor", "rules")
-	
-	ruleGen := rulegen.NewGenerator(templatesDir, outputDir)
-	if err := ruleGen.CreateRuleFiles(phase, feature); err != nil {
-		return Result{}, fmt.Errorf("failed to regenerate cursor rules: %w", err)
-	}
-	
-	message := fmt.Sprintf("Refreshed rules for %s phase of feature '%s'.", phase, feature)
-	return NewResult(message, nil, nil), nil
+
+	return NewResult("i3 workspace refreshed.", nil, nil), nil
 } 
