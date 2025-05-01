@@ -4,7 +4,7 @@
 BINARY_NAME=i3
 OUTPUT_DIR=bin
 BUILD_DIR=build
-VERSION=$(shell grep -oP 'const Version = "\K[^"]+' internal/version/version.go)
+VERSION=$(shell grep 'const Version = ' internal/version/version.go | sed 's/.*"\(.*\)".*/\1/')
 VERSION_FILE=internal/version/version.go
 
 # Version components
@@ -69,10 +69,10 @@ version-major:
 
 # Common post-version tasks
 post-version: build test
-	@echo "New version: $$(grep -oP 'const Version = "\K[^"]+' $(VERSION_FILE))"
+	@echo "New version: $$(grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/')"
 	@read -p "Commit and tag new version? [y/N] " confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
-		NEW_VERSION=$$(grep -oP 'const Version = "\K[^"]+' $(VERSION_FILE)); \
+		NEW_VERSION=$$(grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/'); \
 		git add $(VERSION_FILE); \
 		git commit -m "Bump version to $$NEW_VERSION"; \
 		git tag -a "v$$NEW_VERSION" -m "Release v$$NEW_VERSION"; \
