@@ -27,10 +27,30 @@ i3 is a CLI tool that orchestrates intentional, AI-driven development workflows 
 
 ### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.21 or higher (for building from source)
 - [Cursor IDE](https://cursor.sh/)
 
 ### Installation
+
+#### Download from GitHub Releases
+
+1. Go to the [Releases page](https://github.com/imcclaskey/i3/releases) of this repository
+2. Download the binary for your platform:
+   - macOS/Intel: `i3-darwin-amd64`
+   - macOS/Apple Silicon: `i3-darwin-arm64`
+   - Linux/Intel: `i3-linux-amd64`
+   - Linux/ARM: `i3-linux-arm64`
+   - Windows: `i3-windows-amd64.exe`
+3. Make the binary executable (Linux/macOS):
+   ```bash
+   chmod +x i3-darwin-arm64  # Example for Mac with Apple Silicon
+   ```
+4. Move the binary to a location in your PATH (Linux/macOS):
+   ```bash
+   mv i3-darwin-arm64 /usr/local/bin/i3
+   ```
+
+#### Building from Source
 
 ```bash
 # Clone the repository
@@ -86,6 +106,7 @@ Generate code following the technical plan, with progress tracked in `implementa
 | `i3 phase <phase>` | Set the current phase (setup, ideation, instruction, implementation) |
 | `i3 status` | Show current i3 feature and phase context |
 | `i3 refresh` | Ensure necessary i3 files and directories exist |
+| `i3 version` | Display the current version of i3 |
 
 ## 📂 Project Structure
 

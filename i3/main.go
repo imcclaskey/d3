@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	
 	"github.com/imcclaskey/i3/internal/command"
+	"github.com/imcclaskey/i3/internal/version"
 )
 
 var (
@@ -100,6 +101,16 @@ func initCommands() {
 		},
 	}
 	
+	// Version command
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Print the version of i3",
+		Args:  cobra.NoArgs,
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("i3 version %s\n", version.Version)
+		},
+	}
+	
 	// Add all commands to root
 	rootCmd.AddCommand(createCmd)
 	rootCmd.AddCommand(initCmd)
@@ -108,6 +119,7 @@ func initCommands() {
 	rootCmd.AddCommand(phaseCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(refreshCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 // runCommand is a helper to reduce boilerplate in command Run functions
