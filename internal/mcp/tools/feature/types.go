@@ -1,10 +1,10 @@
-// Package feature implements i3 feature-related tools
+// Package feature implements d3 feature-related tools
 package feature
 
 import (
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/imcclaskey/i3/internal/core"
+	"github.com/imcclaskey/d3/internal/core"
 )
 
 // RegisterTools registers all feature-related tools with the MCP server

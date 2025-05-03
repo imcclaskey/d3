@@ -1,10 +1,10 @@
-// Package phase implements i3 phase-related tools
+// Package phase implements d3 phase-related tools
 package phase
 
 import (
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/imcclaskey/i3/internal/core"
+	"github.com/imcclaskey/d3/internal/core"
 )
 
 // RegisterTools registers all phase-related tools with the MCP server

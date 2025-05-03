@@ -7,18 +7,18 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/imcclaskey/i3/internal/core"
+	"github.com/imcclaskey/d3/internal/core"
 )
 
-// initTool defines the i3_init tool
-var initTool = mcp.NewTool("i3_init",
-	mcp.WithDescription("TEST Initialize i3 in the current workspace and create base project files"),
+// initTool defines the d3_init tool
+var initTool = mcp.NewTool("d3_init",
+	mcp.WithDescription("TEST Initialize d3 in the current workspace and create base project files"),
 	mcp.WithBoolean("clean",
 		mcp.Description("Perform a clean initialization (remove existing files)"),
 	),
 )
 
-// handleInit returns a handler for the i3_init tool
+// handleInit returns a handler for the d3_init tool
 func handleInit(services *core.Services) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract clean flag

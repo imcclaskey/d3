@@ -1,4 +1,4 @@
-// Package cli implements the i3 command-line interface
+// Package cli implements the d3 command-line interface
 package cli
 
 import (
@@ -6,12 +6,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/imcclaskey/i3/internal/cli/command"
-	"github.com/imcclaskey/i3/internal/common"
-	"github.com/imcclaskey/i3/internal/version"
+	"github.com/imcclaskey/d3/internal/cli/command"
+	"github.com/imcclaskey/d3/internal/common"
+	"github.com/imcclaskey/d3/internal/version"
 )
 
-// CLI represents the i3 command-line interface
+// CLI represents the d3 command-line interface
 type CLI struct {
 	rootCmd *cobra.Command
 }
@@ -19,9 +19,9 @@ type CLI struct {
 // NewCLI creates a new CLI instance
 func NewCLI() *CLI {
 	rootCmd := &cobra.Command{
-		Use:   "i3",
-		Short: "i3 Framework CLI",
-		Long:  "Interactive Intelligent Interface (i3) Framework CLI",
+		Use:   "d3",
+		Short: "d3 Framework CLI",
+		Long:  "Define, Design, Deliver (d3) Framework CLI",
 	}
 
 	return &CLI{
@@ -39,10 +39,10 @@ func (c *CLI) InitCommands() {
 	// Version command
 	c.rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
-		Short: "Print the version of i3",
+		Short: "Print the version of d3",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("i3 version %s\n", version.Version)
+			fmt.Printf("d3 version %s\n", version.Version)
 		},
 	})
 }

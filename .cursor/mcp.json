@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "i3": {
-      "command": "i3",
+    "d3": {
+      "command": "d3",
       "args": ["serve"],
       "env": {
-        "I3_WORKSPACE_PATH": "/Users/imcclaskey/workspace/i3"
+        "D3_WORKSPACE_PATH": "/Users/imcclaskey/workspace/d3"
       }
     }
   }

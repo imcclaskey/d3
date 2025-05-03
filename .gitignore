@@ -32,6 +32,6 @@ Thumbs.db
 # Log files
 *.log
 
-# Cursor internal files (already ignored in .cursor/rules/i3/.gitignore, but good practice)
+# Cursor internal files (already ignored in .cursor/rules/d3/.gitignore, but good practice)
 /.cursor/out/
 /.cursor/debug/ 

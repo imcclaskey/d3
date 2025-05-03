@@ -7,14 +7,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/imcclaskey/i3/internal/core/session"
+	"github.com/imcclaskey/d3/internal/core/session"
 )
 
 // Service provides feature management operations
 type Service struct {
 	workspaceRoot string
 	featuresDir   string
-	i3Dir         string
+	d3Dir         string
 	sessionMgr    *session.Manager
 }
 
@@ -23,7 +23,7 @@ func NewService(workspaceRoot, featuresDir string) *Service {
 	return &Service{
 		workspaceRoot: workspaceRoot,
 		featuresDir:   featuresDir,
-		i3Dir:         filepath.Join(workspaceRoot, ".i3"),
+		d3Dir:         filepath.Join(workspaceRoot, ".d3"),
 		sessionMgr:    session.NewManager(workspaceRoot),
 	}
 }
@@ -34,7 +34,7 @@ type ContextProvider interface {
 	UpdateContext(feature, phase string) error
 }
 
-// Context represents the current i3 context
+// Context represents the current d3 context
 type Context struct {
 	Feature string
 	Phase   string
@@ -69,7 +69,7 @@ func (s *Service) Create(ctx context.Context, featureName string) (*CreateResult
 
 	// Update the session state
 	state.CurrentFeature = featureName
-	state.CurrentPhase = session.Ideation
+	state.CurrentPhase = session.Define
 
 	// Save the updated state
 	if err := s.sessionMgr.Save(state); err != nil {
@@ -107,7 +107,7 @@ func (s *Service) Enter(ctx context.Context, featureName string) (*EnterResult, 
 
 	// Update the session state
 	state.CurrentFeature = featureName
-	state.CurrentPhase = session.Ideation
+	state.CurrentPhase = session.Define
 
 	// Save the updated state
 	if err := s.sessionMgr.Save(state); err != nil {

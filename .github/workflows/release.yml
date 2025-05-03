@@ -1,4 +1,4 @@
-name: Release i3
+name: Release d3
 
 on:
   push:
@@ -31,13 +31,13 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          name: i3 ${{ github.ref_name }}
+          name: d3 ${{ github.ref_name }}
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            build/i3-darwin-amd64
-            build/i3-darwin-arm64
-            build/i3-linux-amd64
-            build/i3-linux-arm64
-            build/i3-windows-amd64.exe 
+            build/d3-darwin-amd64
+            build/d3-darwin-arm64
+            build/d3-linux-amd64
+            build/d3-linux-arm64
+            build/d3-windows-amd64.exe 

@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/imcclaskey/i3/internal/common"
-	"github.com/imcclaskey/i3/internal/mcp"
+	"github.com/imcclaskey/d3/internal/common"
+	"github.com/imcclaskey/d3/internal/mcp"
 )
 
 // ServeCommand represents the serve command implementation
@@ -17,8 +17,8 @@ type ServeCommand struct{}
 func NewServeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
-		Short: "Start an MCP server for i3",
-		Long:  "Start a Model Context Protocol server that exposes i3 functionality to LLM clients",
+		Short: "Start an MCP server for d3",
+		Long:  "Start a Model Context Protocol server that exposes d3 functionality to LLM clients",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runServe()

@@ -7,17 +7,17 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/imcclaskey/i3/internal/common"
-	"github.com/imcclaskey/i3/internal/core/rules"
-	"github.com/imcclaskey/i3/internal/core/session"
+	"github.com/imcclaskey/d3/internal/common"
+	"github.com/imcclaskey/d3/internal/core/rules"
+	"github.com/imcclaskey/d3/internal/core/session"
 )
 
-// ruleTool defines the i3_rule tool
-var ruleTool = mcp.NewTool("i3_rule",
-	mcp.WithDescription("Get phase-specific rules and guidance for i3 workflow"),
+// ruleTool defines the d3_rule tool
+var ruleTool = mcp.NewTool("d3_rule",
+	mcp.WithDescription("Get phase-specific rules and guidance for d3 workflow"),
 )
 
-// handleRule returns a handler for the i3_rule tool
+// handleRule returns a handler for the d3_rule tool
 func handleRule() server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Get workspace root
@@ -37,8 +37,8 @@ func handleRule() server.ToolHandlerFunc {
 		if err != nil || feature == "" || phase == "" {
 			message := "No active feature or phase detected."
 			message += "\n\n--- NEXT STEPS ---"
-			message += "\n1. Run i3_init to initialize i3 in your workspace"
-			message += "\n2. Run i3_create_feature to create a new feature"
+			message += "\n1. Run d3_init to initialize d3 in your workspace"
+			message += "\n2. Run d3_create_feature to create a new feature"
 
 			return mcp.NewToolResultText(message), nil
 		}

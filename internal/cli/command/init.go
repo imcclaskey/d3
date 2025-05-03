@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/imcclaskey/i3/internal/common"
-	"github.com/imcclaskey/i3/internal/core"
+	"github.com/imcclaskey/d3/internal/common"
+	"github.com/imcclaskey/d3/internal/core"
 )
 
 // InitCommand represents the init command implementation
@@ -23,8 +23,8 @@ func NewInitCommand() *cobra.Command {
 	// Create cobra command
 	cobraCmd := &cobra.Command{
 		Use:   "init",
-		Short: "Initialize i3 in the current workspace",
-		Long:  "Initialize i3 in the current workspace and create base project files",
+		Short: "Initialize d3 in the current workspace",
+		Long:  "Initialize d3 in the current workspace and create base project files",
 		Args:  cobra.NoArgs,
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			return runInit(cmd.clean)

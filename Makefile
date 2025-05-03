@@ -1,7 +1,7 @@
 .PHONY: build install clean test release version-patch version-minor version-major print-version
 
 # Binary name
-BINARY_NAME=i3
+BINARY_NAME=d3
 OUTPUT_DIR=bin
 BUILD_DIR=build
 VERSION_FILE=internal/version/version.go
@@ -18,7 +18,7 @@ NEW_VERSION_MINOR=$(VERSION_MAJOR).$(shell expr $(VERSION_MINOR) + 1).0
 NEW_VERSION_MAJOR=$(shell expr $(VERSION_MAJOR) + 1).0.0
 
 # Version flags
-VERSION_FLAGS=-ldflags "-X github.com/imcclaskey/i3/internal/version.Version=$(VERSION)"
+VERSION_FLAGS=-ldflags "-X github.com/imcclaskey/d3/internal/version.Version=$(VERSION)"
 
 # Print current version
 print-version:
@@ -27,11 +27,11 @@ print-version:
 # Build the binary
 build:
 	mkdir -p $(OUTPUT_DIR)
-	go build $(VERSION_FLAGS) -o $(OUTPUT_DIR)/$(BINARY_NAME) ./i3
+	go build $(VERSION_FLAGS) -o $(OUTPUT_DIR)/$(BINARY_NAME) ./d3
 
 # Install the binary
 install:
-	go install $(VERSION_FLAGS) ./i3
+	go install $(VERSION_FLAGS) ./d3
 
 # Run tests
 test:
@@ -47,15 +47,15 @@ build-all: clean
 	mkdir -p $(BUILD_DIR)
 	
 	# Mac (amd64 and arm64)
-	GOOS=darwin GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 ./i3
-	GOOS=darwin GOARCH=arm64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 ./i3
+	GOOS=darwin GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 ./d3
+	GOOS=darwin GOARCH=arm64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 ./d3
 	
 	# Linux (amd64 and arm64)
-	GOOS=linux GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 ./i3
-	GOOS=linux GOARCH=arm64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 ./i3
+	GOOS=linux GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 ./d3
+	GOOS=linux GOARCH=arm64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 ./d3
 	
 	# Windows (amd64)
-	GOOS=windows GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe ./i3
+	GOOS=windows GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe ./d3
 
 # Version bumping targets
 version-patch:

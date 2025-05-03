@@ -7,20 +7,20 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/imcclaskey/i3/internal/core"
-	"github.com/imcclaskey/i3/internal/core/session"
+	"github.com/imcclaskey/d3/internal/core"
+	"github.com/imcclaskey/d3/internal/core/session"
 )
 
-// navigateTool defines the i3_phase_navigate tool
-var navigateTool = mcp.NewTool("i3_phase_navigate",
+// navigateTool defines the d3_phase_navigate tool
+var navigateTool = mcp.NewTool("d3_phase_navigate",
 	mcp.WithDescription("Navigate to a different phase in the current feature"),
 	mcp.WithString("to",
 		mcp.Required(),
-		mcp.Description("Target phase to navigate to (ideation, instruction, implementation)"),
+		mcp.Description("Target phase to navigate to (define, design, deliver)"),
 	),
 )
 
-// handleNavigate returns a handler for the i3_phase_navigate tool
+// handleNavigate returns a handler for the d3_phase_navigate tool
 func handleNavigate(services *core.Services) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract target phase
@@ -43,7 +43,7 @@ func handleNavigate(services *core.Services) server.ToolHandlerFunc {
 
 		// Ensure we have an active feature
 		if currentFeature == "" {
-			return mcp.NewToolResultError("No active feature. Use i3_create_feature or i3_enter_feature first."), nil
+			return mcp.NewToolResultError("No active feature. Use d3_create_feature or d3_enter_feature first."), nil
 		}
 
 		// Check for potential impact
@@ -97,8 +97,8 @@ func handleNavigate(services *core.Services) server.ToolHandlerFunc {
 			nextSteps = append(nextSteps, fmt.Sprintf("Continue working in the %s phase", targetPhase))
 		}
 
-		// Remind to use i3_rule to get phase guidance
-		nextSteps = append(nextSteps, "Use i3_rule to get phase-specific guidance")
+		// Remind to use d3_rule to get phase guidance
+		nextSteps = append(nextSteps, "Use d3_rule to get phase-specific guidance")
 
 		// Create base message
 		message := fmt.Sprintf("Navigated to %s phase.", targetPhase)
@@ -129,9 +129,9 @@ func handleNavigate(services *core.Services) server.ToolHandlerFunc {
 func isBackwardTransition(current, target session.Phase) bool {
 	// Map phases to numeric values
 	phaseValues := map[session.Phase]int{
-		session.Ideation:       1,
-		session.Instruction:    2,
-		session.Implementation: 3,
+		session.Define:  1,
+		session.Design:  2,
+		session.Deliver: 3,
 	}
 
 	currentValue, currentExists := phaseValues[current]

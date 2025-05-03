@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/imcclaskey/i3/internal/cli"
+	"github.com/imcclaskey/d3/internal/cli"
 )
 
 func main() {

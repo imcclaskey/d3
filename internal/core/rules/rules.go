@@ -46,7 +46,7 @@ func (g *RuleGenerator) GenerateCoreContent(feature, phase string) (string, erro
 	return coreContent, nil
 }
 
-// GeneratePrefix creates a formatted prefix showing the current i3 context
+// GeneratePrefix creates a formatted prefix showing the current d3 context
 func (g *RuleGenerator) GeneratePrefix(feature, phase string) string {
 	// Return "Ready" if either feature or phase is missing
 	if feature == "" || phase == "" {
@@ -55,9 +55,9 @@ func (g *RuleGenerator) GeneratePrefix(feature, phase string) string {
 
 	// Simple map for common phases
 	phaseVerbs := map[string]string{
-		"ideation":       "Ideating",
-		"instruction":    "Instructing",
-		"implementation": "Implementing",
+		"define":  "Defining",
+		"design":  "Designing",
+		"deliver": "Delivering",
 	}
 
 	// Get verb form or create it

@@ -7,12 +7,12 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/imcclaskey/i3/internal/core"
-	"github.com/imcclaskey/i3/internal/core/session"
+	"github.com/imcclaskey/d3/internal/core"
+	"github.com/imcclaskey/d3/internal/core/session"
 )
 
-// createTool defines the i3_create_feature tool
-var createTool = mcp.NewTool("i3_create_feature",
+// createTool defines the d3_create_feature tool
+var createTool = mcp.NewTool("d3_create_feature",
 	mcp.WithDescription("Create a new feature and set it as the current context"),
 	mcp.WithString("name",
 		mcp.Required(),
@@ -20,7 +20,7 @@ var createTool = mcp.NewTool("i3_create_feature",
 	),
 )
 
-// handleCreate returns a handler for the i3_create_feature tool
+// handleCreate returns a handler for the d3_create_feature tool
 func handleCreate(services *core.Services) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract feature name
@@ -36,7 +36,7 @@ func handleCreate(services *core.Services) server.ToolHandlerFunc {
 		}
 
 		// Update the core rule file with the new context
-		initialPhase := session.Ideation.String()
+		initialPhase := session.Define.String()
 		if err := services.Files.GenerateCoreRuleFile(featureName, initialPhase); err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to update core rule file: %s", err.Error())), nil
 		}
@@ -45,15 +45,15 @@ func handleCreate(services *core.Services) server.ToolHandlerFunc {
 		contextInfo := map[string]string{
 			"Feature":       result.FeatureName,
 			"Feature Path":  result.FeaturePath,
-			"Current Phase": "ideation",
+			"Current Phase": "define",
 		}
 
 		// Build next steps
 		nextSteps := []string{
-			"Fill out ideation.md to describe your feature idea",
-			"Navigate to the next phase when ready with i3_phase_navigate",
+			"Fill out define.md to describe your feature idea",
+			"Navigate to the next phase when ready with d3_phase_navigate",
 			"Add relevant technical requirements and implementation details",
-			"Use i3_rule to get phase-specific guidance",
+			"Use d3_rule to get phase-specific guidance",
 		}
 
 		// Format the message with context and next steps

@@ -1,4 +1,4 @@
-// Package common provides common utilities for i3
+// Package common provides common utilities for d3
 package common
 
 import (
@@ -11,7 +11,7 @@ import (
 // It returns an error if the current working directory cannot be determined.
 func GetWorkspaceRoot() (string, error) {
 	// First check for environment variable
-	if envPath := os.Getenv("I3_WORKSPACE_PATH"); envPath != "" {
+	if envPath := os.Getenv("D3_WORKSPACE_PATH"); envPath != "" {
 		return filepath.Clean(envPath), nil
 	}
 
@@ -35,36 +35,36 @@ func GetWorkspaceRoot() (string, error) {
 			// If home dir fails, use temp dir as last resort
 			tmpDir := os.TempDir()
 			fmt.Fprintf(os.Stderr, "Error getting home directory: %v. Using temp dir: %s\n", homeErr, tmpDir)
-			return filepath.Join(tmpDir, "i3-workspace"), nil // Return path, no error
+			return filepath.Join(tmpDir, "d3-workspace"), nil // Return path, no error
 		}
-		return filepath.Join(homeDir, "i3-workspace"), nil // Return path, no error
+		return filepath.Join(homeDir, "d3-workspace"), nil // Return path, no error
 	}
 
 	return workspaceRoot, nil
 }
 
-// ProjectPaths contains the paths for standard i3 project files
+// ProjectPaths contains the paths for standard d3 project files
 type ProjectPaths struct {
 	WorkspaceRoot  string
-	I3Dir          string
+	D3Dir          string
 	FeaturesDir    string
 	CursorRulesDir string
 }
 
-// GetProjectPaths returns the standard paths for i3 project files
+// GetProjectPaths returns the standard paths for d3 project files
 func GetProjectPaths() (ProjectPaths, error) {
 	workspaceRoot, err := GetWorkspaceRoot()
 	if err != nil {
 		return ProjectPaths{}, fmt.Errorf("failed to get workspace root: %w", err) // Propagate error
 	}
 
-	i3Dir := filepath.Join(workspaceRoot, ".i3")
-	featuresDir := filepath.Join(i3Dir, "features")
+	d3Dir := filepath.Join(workspaceRoot, ".d3")
+	featuresDir := filepath.Join(d3Dir, "features")
 	cursorRulesDir := filepath.Join(workspaceRoot, ".cursor", "rules")
 
 	return ProjectPaths{
 		WorkspaceRoot:  workspaceRoot,
-		I3Dir:          i3Dir,
+		D3Dir:          d3Dir,
 		FeaturesDir:    featuresDir,
 		CursorRulesDir: cursorRulesDir,
 	}, nil
@@ -105,7 +105,7 @@ func EnsureProjectFiles(clean bool) ([]string, error) {
 
 	// Create each base file
 	for filename, content := range ProjectFiles {
-		filePath := filepath.Join(paths.I3Dir, filename)
+		filePath := filepath.Join(paths.D3Dir, filename)
 
 		// Skip if file exists and we're not doing a clean init
 		if !clean {

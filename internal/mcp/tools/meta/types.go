@@ -1,10 +1,10 @@
-// Package meta implements i3 meta and utility tools
+// Package meta implements d3 meta and utility tools
 package meta
 
 import (
 	"github.com/mark3labs/mcp-go/server"
 
-	"github.com/imcclaskey/i3/internal/core"
+	"github.com/imcclaskey/d3/internal/core"
 )
 
 // RegisterTools registers all meta and utility tools with the MCP server

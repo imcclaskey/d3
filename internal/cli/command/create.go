@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/imcclaskey/i3/internal/common"
-	"github.com/imcclaskey/i3/internal/core"
+	"github.com/imcclaskey/d3/internal/common"
+	"github.com/imcclaskey/d3/internal/core"
 )
 
 // CreateCommand represents the create command implementation

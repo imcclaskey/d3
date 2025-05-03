@@ -1,4 +1,4 @@
-# i3 - Ideate, Instruct, Implement!
+# d3 - Define, Design, Deliver!
 
 <div align="center">
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status: Alpha">
@@ -12,9 +12,9 @@
 
 ---
 
-## 🧠 What is i3?
+## 🧠 What is d3?
 
-i3 is a CLI tool that orchestrates intentional, AI-driven development workflows within [Cursor](https://cursor.sh). By imposing a structured, phase-based process managed directly from your terminal, i3 acts as an agent control system that enhances your AI pair programming experience.
+d3 is a CLI tool that orchestrates intentional, AI-driven development workflows within [Cursor](https://cursor.sh). By imposing a structured, phase-based process managed directly from your terminal, d3 acts as an agent control system that enhances your AI pair programming experience.
 
 ### Core Benefits
 
@@ -34,28 +34,28 @@ i3 is a CLI tool that orchestrates intentional, AI-driven development workflows 
 
 #### Download from GitHub Releases
 
-1. Go to the [Releases page](https://github.com/imcclaskey/i3/releases) of this repository
+1. Go to the [Releases page](https://github.com/imcclaskey/d3/releases) of this repository
 2. Download the binary for your platform:
-   - macOS/Intel: `i3-darwin-amd64`
-   - macOS/Apple Silicon: `i3-darwin-arm64`
-   - Linux/Intel: `i3-linux-amd64`
-   - Linux/ARM: `i3-linux-arm64`
-   - Windows: `i3-windows-amd64.exe`
+   - macOS/Intel: `d3-darwin-amd64`
+   - macOS/Apple Silicon: `d3-darwin-arm64`
+   - Linux/Intel: `d3-linux-amd64`
+   - Linux/ARM: `d3-linux-arm64`
+   - Windows: `d3-windows-amd64.exe`
 3. Make the binary executable (Linux/macOS):
    ```bash
-   chmod +x i3-darwin-arm64  # Example for Mac with Apple Silicon
+   chmod +x d3-darwin-arm64  # Example for Mac with Apple Silicon
    ```
 4. Move the binary to a location in your PATH (Linux/macOS):
    ```bash
-   mv i3-darwin-arm64 /usr/local/bin/i3
+   mv d3-darwin-arm64 /usr/local/bin/d3
    ```
 
 #### Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/imcclaskey/i3.git
-cd i3
+git clone https://github.com/imcclaskey/d3.git
+cd d3
 
 # Build and install
 make install
@@ -64,74 +64,74 @@ make install
 ### Basic Workflow
 
 ```bash
-# Initialize i3 in your project
-i3 init
+# Initialize d3 in your project
+d3 init
 
 # Create a new feature
-i3 create my-feature
+d3 create my-feature
 
 # Progress through development phases
-i3 phase ideation     # Define the problem and requirements
-i3 phase instruction  # Plan the technical implementation
-i3 phase implementation  # Write the actual code
+d3 phase define     # Define the problem and requirements
+d3 phase design     # Plan the technical implementation
+d3 phase deliver    # Write the actual code
 
 # Check your current status
-i3 status
+d3 status
 ```
 
 ## 📋 Development Phases
 
-i3 enforces a structured workflow through three main phases:
+d3 enforces a structured workflow through three main phases:
 
-### 1. Ideation Phase
+### 1. Define Phase
 
-Focus on the problem space, requirements, and user needs. Answer the "what" and "why" without diving into implementation details. Document everything in `ideation.md`.
+Focus on the problem space, requirements, and user needs. Answer the "what" and "why" without diving into implementation details. Document everything in `define.md`.
 
-### 2. Instruction Phase
+### 2. Design Phase
 
-Translate ideas into a technical blueprint. Design architecture, component interactions, and implementation steps in `instruction.md`. This becomes the roadmap for implementation.
+Translate ideas into a technical blueprint. Design architecture, component interactions, and implementation steps in `design.md`. This becomes the roadmap for implementation.
 
-### 3. Implementation Phase
+### 3. Deliver Phase
 
-Generate code following the technical plan, with progress tracked in `implementation.json`. Focus exclusively on writing high-quality, maintainable code that aligns with the established plan.
+Generate code following the technical plan, with progress tracked in `deliver.json`. Focus exclusively on writing high-quality, maintainable code that aligns with the established plan.
 
 ## 🛠️ Commands
 
 | Command | Description |
 |---------|-------------|
-| `i3 init [--clean]` | Initialize i3 in the current workspace |
-| `i3 create <feature>` | Create a new feature and set it as the current context |
-| `i3 enter <feature>` | Set the current feature context |
-| `i3 leave` | Leave the current feature context |
-| `i3 phase <phase>` | Set the current phase (setup, ideation, instruction, implementation) |
-| `i3 status` | Show current i3 feature and phase context |
-| `i3 refresh` | Ensure necessary i3 files and directories exist |
-| `i3 version` | Display the current version of i3 |
+| `d3 init [--clean]` | Initialize d3 in the current workspace |
+| `d3 create <feature>` | Create a new feature and set it as the current context |
+| `d3 enter <feature>` | Set the current feature context |
+| `d3 leave` | Leave the current feature context |
+| `d3 phase <phase>` | Set the current phase (setup, define, design, deliver) |
+| `d3 status` | Show current d3 feature and phase context |
+| `d3 refresh` | Ensure necessary d3 files and directories exist |
+| `d3 version` | Display the current version of d3 |
 
 ## 📂 Project Structure
 
 ```
 project/
-├── .i3/                  # i3 configuration and feature documentation
+├── .d3/                  # d3 configuration and feature documentation
 │   ├── features/         # Feature-specific documentation
 │   │   └── my-feature/   # Individual feature folder
-│   │       ├── ideation.md      # Problem definition and requirements
-│   │       ├── instruction.md   # Technical implementation plan
-│   │       └── implementation.json  # Implementation progress tracking
+│   │       ├── define.md      # Problem definition and requirements
+│   │       ├── design.md      # Technical implementation plan
+│   │       └── deliver.json   # Implementation progress tracking
 │   ├── context.json      # Current feature and phase context
 │   ├── project.md        # Project overview and business objectives
 │   └── tech.md           # Technology stack documentation
 └── .cursor/              # Cursor IDE configuration
     └── rules/            # Cursor rules
-        └── i3/           # i3-specific rules for Cursor
-            ├── core.gen.mdc     # Core rules for i3
+        └── d3/           # d3-specific rules for Cursor
+            ├── core.gen.mdc     # Core rules for d3
             └── phase.gen.mdc    # Phase-specific rules
 ```
 
 ## 🔄 How It Works
 
 1. **Feature Creation**: Each feature gets its own documentation directory with phase-specific files
-2. **Context Setting**: i3 maintains your current feature and phase context in `context.json`
+2. **Context Setting**: d3 maintains your current feature and phase context in `context.json`
 3. **Rule Generation**: Phase-appropriate rule files are generated for Cursor based on your context
 4. **AI Guidance**: Cursor's AI assistant uses these rules to provide phase-appropriate guidance
 5. **Documentation Tracking**: Progress and decisions are documented throughout the development lifecycle

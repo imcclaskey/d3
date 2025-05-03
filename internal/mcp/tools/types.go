@@ -1,11 +1,11 @@
-// Package tools implements agentic tools for i3
+// Package tools implements agentic tools for d3
 package tools
 
 import (
-	"github.com/imcclaskey/i3/internal/core"
+	"github.com/imcclaskey/d3/internal/core"
 )
 
-// ToolManager manages all i3 agentic tools
+// ToolManager manages all d3 agentic tools
 type ToolManager struct {
 	services *core.Services
 }

@@ -1,4 +1,4 @@
-// Package session provides state management for i3 sessions
+// Package session provides state management for d3 sessions
 package session
 
 import (
@@ -16,18 +16,18 @@ type Phase string
 const (
 	// None represents no active phase
 	None Phase = ""
-	// Ideation represents the ideation phase (exploration and brainstorming)
-	Ideation Phase = "ideation"
-	// Instruction represents the instruction phase (requirements and specifications)
-	Instruction Phase = "instruction"
-	// Implementation represents the implementation phase (coding and development)
-	Implementation Phase = "implementation"
+	// Define represents the define phase (exploration and brainstorming)
+	Define Phase = "define"
+	// Design represents the design phase (requirements and specifications)
+	Design Phase = "design"
+	// Deliver represents the deliver phase (coding and development)
+	Deliver Phase = "deliver"
 )
 
 // Valid checks if a phase is valid
 func (p Phase) Valid() bool {
 	switch p {
-	case None, Ideation, Instruction, Implementation:
+	case None, Define, Design, Deliver:
 		return true
 	default:
 		return false
@@ -38,13 +38,13 @@ func (p Phase) Valid() bool {
 func (p Phase) Next() Phase {
 	switch p {
 	case None:
-		return Ideation
-	case Ideation:
-		return Instruction
-	case Instruction:
-		return Implementation
+		return Define
+	case Define:
+		return Design
+	case Design:
+		return Deliver
 	default:
-		return p // Implementation has no next phase
+		return p // Deliver has no next phase
 	}
 }
 
@@ -61,18 +61,18 @@ func ParsePhase(s string) (Phase, error) {
 	switch s {
 	case "", "none":
 		return None, nil
-	case "ideation":
-		return Ideation, nil
-	case "instruction":
-		return Instruction, nil
-	case "implementation":
-		return Implementation, nil
+	case "define":
+		return Define, nil
+	case "design":
+		return Design, nil
+	case "deliver":
+		return Deliver, nil
 	default:
 		return None, fmt.Errorf("invalid phase: %s", s)
 	}
 }
 
-// SessionState contains the simplified i3 session state
+// SessionState contains the simplified d3 session state
 type SessionState struct {
 	// Current context
 	CurrentFeature string `yaml:"current_feature,omitempty"`
@@ -91,10 +91,10 @@ type Manager struct {
 
 // NewManager creates a new session manager
 func NewManager(workspaceRoot string) *Manager {
-	i3Dir := filepath.Join(workspaceRoot, ".i3")
+	d3Dir := filepath.Join(workspaceRoot, ".d3")
 	return &Manager{
 		workspaceRoot: workspaceRoot,
-		sessionFile:   filepath.Join(i3Dir, "session.yaml"),
+		sessionFile:   filepath.Join(d3Dir, "session.yaml"),
 	}
 }
 
