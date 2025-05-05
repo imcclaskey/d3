@@ -3,11 +3,11 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
-	"github.com/imcclaskey/d3/internal/common"
-	"github.com/imcclaskey/d3/internal/core"
+	"github.com/imcclaskey/d3/internal/project"
 )
 
 // InitCommand represents the init command implementation
@@ -44,14 +44,14 @@ func runInit(clean bool) error {
 		clean: clean,
 	}
 
-	// Get workspace root
-	workspaceRoot, err := common.GetWorkspaceRoot()
+	// Get project root (using os.Getwd as a fallback for now)
+	projectRoot, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("could not determine workspace root: %w", err)
+		return fmt.Errorf("could not determine project root: %w", err)
 	}
 
 	// Execute the command
-	cfg := NewConfig(workspaceRoot)
+	cfg := NewConfig(projectRoot)
 	result, err := command.Run(context.Background(), cfg)
 
 	if err != nil {
@@ -66,20 +66,15 @@ func runInit(clean bool) error {
 
 // Run implements the Command interface
 func (c *InitCommand) Run(ctx context.Context, cfg Config) (Result, error) {
-	// Create core services
-	services := core.NewServices(cfg.WorkspaceRoot)
+	// Initialize project instance
+	proj := project.New(cfg.WorkspaceRoot)
 
-	// Initialize workspace
-	message, newlyCreated, err := services.Files.InitWorkspace(c.clean)
+	// Run the project initialization logic
+	result, err := proj.Init(c.clean)
 	if err != nil {
-		return Result{}, fmt.Errorf("failed to initialize workspace: %w", err)
+		return Result{}, fmt.Errorf("failed to initialize project: %w", err)
 	}
 
-	// Prepare a more detailed message for the user
-	resultMsg := message
-	if len(newlyCreated) > 0 {
-		resultMsg = fmt.Sprintf("%s\nCreated files: %v", message, newlyCreated)
-	}
-
-	return NewResult(resultMsg, nil, nil), nil
+	// Convert project Result to CLI Result
+	return NewResult(result.FormatCLI(), nil, nil), nil
 }

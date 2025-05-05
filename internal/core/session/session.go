@@ -50,16 +50,13 @@ func (p Phase) Next() Phase {
 
 // String returns the string representation of the phase
 func (p Phase) String() string {
-	if p == "" {
-		return "none"
-	}
 	return string(p)
 }
 
 // ParsePhase converts a string to a Phase
 func ParsePhase(s string) (Phase, error) {
 	switch s {
-	case "", "none":
+	case "":
 		return None, nil
 	case "define":
 		return Define, nil
@@ -83,33 +80,27 @@ type SessionState struct {
 	Version      string    `yaml:"version,omitempty"`
 }
 
-// Manager handles session state operations
-type Manager struct {
-	workspaceRoot string
-	sessionFile   string
+// Storage handles session state persistence
+type Storage struct {
+	sessionFile string
 }
 
-// NewManager creates a new session manager
-func NewManager(workspaceRoot string) *Manager {
-	d3Dir := filepath.Join(workspaceRoot, ".d3")
-	return &Manager{
-		workspaceRoot: workspaceRoot,
-		sessionFile:   filepath.Join(d3Dir, "session.yaml"),
+// NewStorage creates a new session storage handler
+func NewStorage(d3Dir string) *Storage {
+	return &Storage{
+		sessionFile: filepath.Join(d3Dir, "session.yaml"),
 	}
 }
 
-// Load loads the current session state
-func (m *Manager) Load() (*SessionState, error) {
-	// If session file doesn't exist, create a new empty session
-	if _, err := os.Stat(m.sessionFile); os.IsNotExist(err) {
-		return &SessionState{
-			Version:      "1.0",
-			LastModified: time.Now(),
-		}, nil
+// Load loads the current session state from disk
+func (s *Storage) Load() (*SessionState, error) {
+	// If session file doesn't exist, error with the targeted path
+	if _, err := os.Stat(s.sessionFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("session file does not exist: %s", s.sessionFile)
 	}
 
 	// Read session file
-	data, err := os.ReadFile(m.sessionFile)
+	data, err := os.ReadFile(s.sessionFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read session file: %w", err)
 	}
@@ -123,13 +114,13 @@ func (m *Manager) Load() (*SessionState, error) {
 	return &state, nil
 }
 
-// Save saves the current session state
-func (m *Manager) Save(state *SessionState) error {
+// Save saves the current session state to disk
+func (s *Storage) Save(state *SessionState) error {
 	// Update last modified
 	state.LastModified = time.Now()
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(m.sessionFile), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.sessionFile), 0755); err != nil {
 		return fmt.Errorf("failed to create session file directory: %w", err)
 	}
 
@@ -140,65 +131,9 @@ func (m *Manager) Save(state *SessionState) error {
 	}
 
 	// Write session file
-	if err := os.WriteFile(m.sessionFile, data, 0644); err != nil {
+	if err := os.WriteFile(s.sessionFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write session file: %w", err)
 	}
 
 	return nil
-}
-
-// SetPhase sets the current phase
-func (m *Manager) SetPhase(phase Phase) error {
-	// Load current state
-	state, err := m.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load session state: %w", err)
-	}
-
-	// Check if we have an active feature
-	if state.CurrentFeature == "" {
-		return fmt.Errorf("no active feature, use feature commands first")
-	}
-
-	// Validate phase
-	if !phase.Valid() {
-		return fmt.Errorf("invalid phase: %s", phase)
-	}
-
-	// Update state with new phase
-	state.CurrentPhase = phase
-
-	// Save updated state
-	if err := m.Save(state); err != nil {
-		return fmt.Errorf("failed to save session state: %w", err)
-	}
-
-	return nil
-}
-
-// GetCurrentPhase returns the current phase
-func (m *Manager) GetCurrentPhase() (Phase, error) {
-	state, err := m.Load()
-	if err != nil {
-		return None, fmt.Errorf("failed to load session state: %w", err)
-	}
-	return state.CurrentPhase, nil
-}
-
-// GetCurrentFeature returns the current feature
-func (m *Manager) GetCurrentFeature() (string, error) {
-	state, err := m.Load()
-	if err != nil {
-		return "", fmt.Errorf("failed to load session state: %w", err)
-	}
-	return state.CurrentFeature, nil
-}
-
-// GetContext returns the current session context (feature and phase)
-func (m *Manager) GetContext() (string, Phase, error) {
-	state, err := m.Load()
-	if err != nil {
-		return "", None, fmt.Errorf("failed to load session state: %w", err)
-	}
-	return state.CurrentFeature, state.CurrentPhase, nil
 }

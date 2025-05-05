@@ -6,49 +6,32 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/imcclaskey/d3/internal/core/session"
 )
 
 // Service provides feature management operations
 type Service struct {
-	workspaceRoot string
-	featuresDir   string
-	d3Dir         string
-	sessionMgr    *session.Manager
+	projectRoot string
+	featuresDir string
+	d3Dir       string
 }
 
 // NewService creates a new feature service
-func NewService(workspaceRoot, featuresDir string) *Service {
+func NewService(projectRoot, featuresDir, d3Dir string) *Service {
 	return &Service{
-		workspaceRoot: workspaceRoot,
-		featuresDir:   featuresDir,
-		d3Dir:         filepath.Join(workspaceRoot, ".d3"),
-		sessionMgr:    session.NewManager(workspaceRoot),
+		projectRoot: projectRoot,
+		featuresDir: featuresDir,
+		d3Dir:       d3Dir,
 	}
 }
 
-// ContextProvider defines the interface for accessing the workspace context
-type ContextProvider interface {
-	GetContext() (*Context, error)
-	UpdateContext(feature, phase string) error
+// FeatureInfo contains basic information about a feature
+type FeatureInfo struct {
+	Name string
+	Path string
 }
 
-// Context represents the current d3 context
-type Context struct {
-	Feature string
-	Phase   string
-}
-
-// CreateResult contains the result of a create operation
-type CreateResult struct {
-	FeatureName string
-	FeaturePath string
-	Message     string
-}
-
-// Create creates a new feature and sets it as the current context
-func (s *Service) Create(ctx context.Context, featureName string) (*CreateResult, error) {
+// CreateFeature creates a new feature directory
+func (s *Service) CreateFeature(ctx context.Context, featureName string) (*FeatureInfo, error) {
 	featurePath := filepath.Join(s.featuresDir, featureName)
 
 	// Check if feature already exists
@@ -61,89 +44,47 @@ func (s *Service) Create(ctx context.Context, featureName string) (*CreateResult
 		return nil, fmt.Errorf("failed to create feature directory: %w", err)
 	}
 
-	// Load current session state
-	state, err := s.sessionMgr.Load()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load session state: %w", err)
-	}
-
-	// Update the session state
-	state.CurrentFeature = featureName
-	state.CurrentPhase = session.Define
-
-	// Save the updated state
-	if err := s.sessionMgr.Save(state); err != nil {
-		return nil, fmt.Errorf("failed to update session state: %w", err)
-	}
-
-	message := fmt.Sprintf("Created feature %s and set as current context", featureName)
-	return &CreateResult{
-		FeatureName: featureName,
-		FeaturePath: featurePath,
-		Message:     message,
+	return &FeatureInfo{
+		Name: featureName,
+		Path: featurePath,
 	}, nil
 }
 
-// EnterResult contains the result of an enter operation
-type EnterResult struct {
-	FeatureName string
-	Message     string
-}
-
-// Enter sets a feature as the current context
-func (s *Service) Enter(ctx context.Context, featureName string) (*EnterResult, error) {
+// FeatureExists checks if a feature exists
+func (s *Service) FeatureExists(featureName string) bool {
 	featurePath := filepath.Join(s.featuresDir, featureName)
-
-	// Check if feature exists
-	if _, err := os.Stat(featurePath); err != nil {
-		return nil, fmt.Errorf("feature %s does not exist", featureName)
-	}
-
-	// Load current session state
-	state, err := s.sessionMgr.Load()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load session state: %w", err)
-	}
-
-	// Update the session state
-	state.CurrentFeature = featureName
-	state.CurrentPhase = session.Define
-
-	// Save the updated state
-	if err := s.sessionMgr.Save(state); err != nil {
-		return nil, fmt.Errorf("failed to update session state: %w", err)
-	}
-
-	message := fmt.Sprintf("Entered feature %s", featureName)
-	return &EnterResult{
-		FeatureName: featureName,
-		Message:     message,
-	}, nil
+	_, err := os.Stat(featurePath)
+	return err == nil
 }
 
-// LeaveResult contains the result of a leave operation
-type LeaveResult struct {
-	Message string
+// GetFeaturePath returns the path to a feature directory
+func (s *Service) GetFeaturePath(featureName string) string {
+	return filepath.Join(s.featuresDir, featureName)
 }
 
-// Leave clears the current feature context
-func (s *Service) Leave(ctx context.Context) (*LeaveResult, error) {
-	// Load current session state
-	state, err := s.sessionMgr.Load()
+// ListFeatures returns a list of all features
+func (s *Service) ListFeatures(ctx context.Context) ([]FeatureInfo, error) {
+	// Check if features directory exists
+	if _, err := os.Stat(s.featuresDir); os.IsNotExist(err) {
+		return []FeatureInfo{}, nil // Empty list, not an error
+	}
+
+	// Read feature directories
+	entries, err := os.ReadDir(s.featuresDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load session state: %w", err)
+		return nil, fmt.Errorf("failed to read features directory: %w", err)
 	}
 
-	// Update the session state
-	state.CurrentFeature = ""
-	state.CurrentPhase = session.None
-
-	// Save the updated state
-	if err := s.sessionMgr.Save(state); err != nil {
-		return nil, fmt.Errorf("failed to update session state: %w", err)
+	// Build result list
+	var features []FeatureInfo
+	for _, entry := range entries {
+		if entry.IsDir() {
+			features = append(features, FeatureInfo{
+				Name: entry.Name(),
+				Path: filepath.Join(s.featuresDir, entry.Name()),
+			})
+		}
 	}
 
-	return &LeaveResult{
-		Message: "Left current feature context",
-	}, nil
+	return features, nil
 }

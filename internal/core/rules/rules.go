@@ -2,6 +2,8 @@ package rules
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -13,8 +15,8 @@ func NewRuleGenerator() *RuleGenerator {
 	return &RuleGenerator{}
 }
 
-// GenerateRuleContent generates rule content for a phase and feature
-func (g *RuleGenerator) GenerateRuleContent(phase, feature string) (string, error) {
+// GeneratePhaseContent generates rule content for a feature and phase
+func (g *RuleGenerator) GeneratePhaseContent(feature, phase string) (string, error) {
 	// Only use embedded templates
 	template, exists := Templates[phase]
 	if !exists {
@@ -67,4 +69,58 @@ func (g *RuleGenerator) GeneratePrefix(feature, phase string) string {
 	}
 
 	return fmt.Sprintf("%s %s", verb, feature)
+}
+
+// Service provides rule management operations
+type Service struct {
+	projectRoot    string
+	cursorRulesDir string
+	ruleGenerator  *RuleGenerator
+}
+
+// NewService creates a new rules service
+func NewService(projectRoot, cursorRulesDir string) *Service {
+	return &Service{
+		projectRoot:    projectRoot,
+		cursorRulesDir: cursorRulesDir,
+		ruleGenerator:  NewRuleGenerator(),
+	}
+}
+
+// RefreshRules generates core rule files based on current state
+func (s *Service) RefreshRules(feature string, phase string) error {
+
+	// Ensure d3 directory exists
+	d3Dir := filepath.Join(s.cursorRulesDir, "d3")
+	if err := os.MkdirAll(d3Dir, 0755); err != nil {
+		return fmt.Errorf("failed to create rule directory: %w", err)
+	}
+
+	// Generate core rule content
+	coreContent, err := s.ruleGenerator.GenerateCoreContent(feature, phase)
+	if err != nil {
+		return fmt.Errorf("failed to generate core rule: %w", err)
+	}
+
+	// Write core rule file
+	corePath := filepath.Join(d3Dir, "core.gen.mdc")
+	if err := os.WriteFile(corePath, []byte(coreContent), 0644); err != nil {
+		return fmt.Errorf("failed to write core rule file: %w", err)
+	}
+
+	if phase == "define" || phase == "design" || phase == "deliver" {
+		// Generate phase rule content
+		phaseContent, err := s.ruleGenerator.GeneratePhaseContent(feature, phase)
+		if err != nil {
+			return fmt.Errorf("failed to generate phase rule: %w", err)
+		}
+
+		// Write phase rule file
+		phasePath := filepath.Join(d3Dir, "phase.gen.mdc")
+		if err := os.WriteFile(phasePath, []byte(phaseContent), 0644); err != nil {
+			return fmt.Errorf("failed to write phase rule file: %w", err)
+		}
+	}
+
+	return nil
 }

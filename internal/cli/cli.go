@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/imcclaskey/d3/internal/cli/command"
-	"github.com/imcclaskey/d3/internal/common"
 	"github.com/imcclaskey/d3/internal/version"
 )
 
@@ -50,11 +49,4 @@ func (c *CLI) InitCommands() {
 // Execute executes the CLI
 func (c *CLI) Execute() error {
 	return c.rootCmd.Execute()
-}
-
-// GetWorkspaceRoot gets the workspace root directory
-// It returns an error if the current working directory cannot be determined.
-func GetWorkspaceRoot() (string, error) {
-	// Use the common implementation to ensure consistency and handle errors
-	return common.GetWorkspaceRoot()
 }

@@ -1,26 +1,14 @@
+// Package tools provides tool registration and management for MCP
 package tools
 
 import (
+	"github.com/imcclaskey/d3/internal/project"
 	"github.com/mark3labs/mcp-go/server"
-
-	"github.com/imcclaskey/d3/internal/core"
-	"github.com/imcclaskey/d3/internal/mcp/tools/artifact"
-	"github.com/imcclaskey/d3/internal/mcp/tools/feature"
-	"github.com/imcclaskey/d3/internal/mcp/tools/meta"
-	"github.com/imcclaskey/d3/internal/mcp/tools/phase"
 )
 
-// RegisterAllTools registers all d3 tools with the MCP server
-func RegisterAllTools(mcpServer *server.MCPServer, services *core.Services) {
-	// Register feature tools
-	feature.RegisterTools(mcpServer, services)
-
-	// Register phase tools
-	phase.RegisterTools(mcpServer, services)
-
-	// Register artifact tools
-	artifact.RegisterTools(mcpServer, services)
-
-	// Register meta tools
-	meta.RegisterTools(mcpServer, services)
+// RegisterTools registers all available d3 tools with the MCP server
+func RegisterTools(mcpServer *server.MCPServer, proj *project.Project) {
+	mcpServer.AddTool(MoveTool, HandleMove(proj))
+	mcpServer.AddTool(CreateTool, HandleCreate(proj))
+	mcpServer.AddTool(InitTool, HandleInit(proj))
 }

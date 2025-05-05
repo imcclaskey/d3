@@ -3,11 +3,11 @@ package command
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
-	"github.com/imcclaskey/d3/internal/common"
-	"github.com/imcclaskey/d3/internal/core"
+	"github.com/imcclaskey/d3/internal/project"
 )
 
 // CreateCommand represents the create command implementation
@@ -36,11 +36,13 @@ func runCreate(featureName string) error {
 		featureName: featureName,
 	}
 
-	// Execute the command
-	workspaceRoot, err := common.GetWorkspaceRoot()
+	// Get workspace root (using os.Getwd as fallback)
+	workspaceRoot, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("could not determine workspace root: %w", err)
 	}
+
+	// Execute the command
 	cfg := NewConfig(workspaceRoot)
 	result, err := command.Run(context.Background(), cfg)
 
@@ -56,14 +58,15 @@ func runCreate(featureName string) error {
 
 // Run implements the Command interface
 func (c *CreateCommand) Run(ctx context.Context, cfg Config) (Result, error) {
-	// Create core services
-	services := core.NewServices(cfg.WorkspaceRoot)
+	// Initialize project
+	proj := project.New(cfg.WorkspaceRoot)
 
-	// Call the feature service to create a new feature
-	result, err := services.Feature.Create(ctx, c.featureName)
+	// Create the feature
+	result, err := proj.CreateFeature(ctx, c.featureName)
 	if err != nil {
 		return Result{}, err
 	}
 
-	return NewResult(result.Message, result, nil), nil
+	// Convert project Result to CLI Result
+	return NewResult(result.FormatCLI(), nil, nil), nil
 }
