@@ -119,7 +119,7 @@ tasks:
     description: |
       - Write tests for `rules.Service` methods, using `gomock`-generated mock `FileSystem` and `Generator` interfaces.
       - (Optional: Write tests for `rules.RuleGenerator` methods separately if its complexity warrants it, potentially requiring further `FileSystem` DI into `RuleGenerator` itself if it uses `os` directly).
-    status: "pending"
+    status: "completed"
 
   - id: "step-10"
     name: "Implement Unit Tests for `internal/core/feature`"
@@ -151,3 +151,11 @@ tasks:
     description: |
       - Modify the relevant GitHub Actions workflow to add a step executing `go test ./...` before build/release jobs.
     status: "pending"
+
+  - path: "internal/core/rules/rules_test.go"
+    status: "created"
+    summary: "Added unit tests for RuleGenerator and rules.Service using gomock."
+
+  - path: "internal/core/rules/mocks/mock_generator.go"
+    status: "generated"
+    summary: "Generated gomock mock for rules.Generator interface."

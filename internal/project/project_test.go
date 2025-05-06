@@ -497,25 +497,19 @@ func TestProject_ChangePhase(t *testing.T) {
 				featureDir := filepath.Join(proj.state.FeaturesDir, featureName)
 				phaseToCheckDir := filepath.Join(featureDir, targetPhaseStr)
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes()
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
-				mockFS.EXPECT().Stat(phaseToCheckDir).Return(nil, os.ErrNotExist).Times(1) // No existing phase dir
+				mockFS.EXPECT().Stat(phaseToCheckDir).Return(nil, os.ErrNotExist).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules(featureName, targetPhaseStr).Return(nil).Times(1)
 
-				// Add expectations for calls made by EnsurePhaseFiles
+				// Expectations for calls made by EnsurePhaseFiles
 				for p, filename := range phase.PhaseFileMap {
 					phaseDir := filepath.Join(featureDir, string(p))
 					filePath := filepath.Join(phaseDir, filename)
 					mockFS.EXPECT().MkdirAll(phaseDir, os.FileMode(0755)).Return(nil).Times(1)
-					mockFS.EXPECT().Stat(filePath).Return(nil, os.ErrNotExist).Times(1) // Assume files don't exist yet
-					// Mocking os.Create is tricky. It needs to return a file-like object whose Close() method can be called.
-					// Returning nil, nil might be sufficient if EnsurePhaseFiles handles nil file gracefully (which it might not).
-					// A safer bet is mocking Create to return a simple object with a Close method.
-					// We could use os.Pipe() or create a temporary file, but let's try a simple mock first.
-					// If EnsurePhaseFiles requires a real *os.File, this mock will need adjustment.
-					mockFile := &os.File{} // Caution: This is not a real file handle.
-					mockFS.EXPECT().Create(filePath).Return(mockFile, nil).Times(1)
+					mockFS.EXPECT().Stat(filePath).Return(nil, os.ErrNotExist).Times(1)
+					mockFS.EXPECT().Create(filePath).Return(testutil.NewClosableMockFile(t), nil).Times(1)
 				}
 			},
 			wantErr:               false,
@@ -536,18 +530,17 @@ func TestProject_ChangePhase(t *testing.T) {
 				featureDir := filepath.Join(proj.state.FeaturesDir, featureName)
 				phaseToCheckDir := filepath.Join(featureDir, targetPhase.String())
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes()
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
-				mockFS.EXPECT().Stat(phaseToCheckDir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Phase dir EXISTS
+				mockFS.EXPECT().Stat(phaseToCheckDir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules(featureName, targetPhase.String()).Return(nil).Times(1)
 
-				// Add expectations for calls made by EnsurePhaseFiles
+				// Expectations for calls made by EnsurePhaseFiles
 				for p, filename := range phase.PhaseFileMap {
 					phaseDir := filepath.Join(featureDir, string(p))
 					filePath := filepath.Join(phaseDir, filename)
 					mockFS.EXPECT().MkdirAll(phaseDir, os.FileMode(0755)).Return(nil).Times(1)
-					// Simulate files existing this time to see if it matters (it shouldn't for EnsurePhaseFiles logic)
 					mockFS.EXPECT().Stat(filePath).Return(testutil.MockFileInfo{FIsDir: false}, nil).Times(1)
 				}
 			},
