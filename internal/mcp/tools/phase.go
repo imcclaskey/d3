@@ -3,7 +3,6 @@ package tools
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/project"
@@ -23,14 +22,6 @@ var MoveTool = mcp.NewTool("d3_phase_move",
 // HandleMove returns a handler for the d3_phase_move tool
 func HandleMove(proj *project.Project) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-
-		// TODO: clean this up.
-		// Use the D3_PROJECT_ROOT environment variable. Error if not set.
-		workspaceRoot := os.Getenv("D3_PROJECT_ROOT")
-		if workspaceRoot == "" {
-			return mcp.NewToolResultError("D3_PROJECT_ROOT environment variable not set"), nil
-		}
-
 		// Extract phase parameter
 		targetPhaseStr, ok := request.Params.Arguments["to"].(string)
 		if !ok {

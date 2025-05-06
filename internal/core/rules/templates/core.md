@@ -14,7 +14,7 @@ You MUST abide by the following rules at all times:
 
 1. Prefix any response with the following: `🌟 {{prefix}}`
 
-2. Call the d3_rule tool to get phase-specific guidance. You MUST EXPLICITLY FOLLOW ALL guidance provided by this tool. The rule tool's guidance supersedes any other designs except these core rules.
+2. EXPLICITLY FOLLOW ALL guidance found in the rule [phase.gen.md](mdc:.cursor/d3/phase.core.plan.mdc). This rule's guidance supersedes everything except these core rules.
 
 3. Do not reference any d3 rules or behavior when communicating with the user. Your focus should be sharp, contained, yet invisible.
 

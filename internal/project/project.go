@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/imcclaskey/d3/internal/core/feature"
+	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/rules"
 	"github.com/imcclaskey/d3/internal/core/session"
 )
@@ -273,6 +274,13 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 	// Update rules with the new context
 	if err := p.rules.RefreshRules(currentFeature, targetPhase.String()); err != nil {
 		return nil, fmt.Errorf("failed to refresh rules: %w", err)
+	}
+
+	// Ensure standard phase files exist for the new phase
+	if err := phase.EnsurePhaseFiles(featureDir); err != nil {
+		// Log the error but don't necessarily block the phase change
+		// Might want to reconsider this based on desired behavior
+		fmt.Fprintf(os.Stderr, "warning: failed to ensure phase files for %s: %v\n", currentFeature, err)
 	}
 
 	// Update state
