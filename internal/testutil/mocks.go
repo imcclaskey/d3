@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // MockFileInfo is a minimal implementation of os.FileInfo for shared test usage.
@@ -35,4 +37,26 @@ func NewClosableMockFile(t *testing.T) *os.File {
 		t.Logf("testutil.NewClosableMockFile: closing read pipe failed (non-critical): %v", err)
 	}
 	return w
+}
+
+// MCPCallToolRequestParams represents the anonymous struct for CallToolRequest.Params.
+// We define it here as a named type for convenience in test helpers.
+// Note: This exactly mirrors the anonymous struct defined in mcp.CallToolRequest.
+type MCPCallToolRequestParams struct {
+	Name      string                 `json:"name"`
+	Arguments map[string]interface{} `json:"arguments,omitempty"`
+	Meta      *struct {
+		ProgressToken mcp.ProgressToken `json:"progressToken,omitempty"`
+	} `json:"_meta,omitempty"`
+}
+
+// NewTestCallToolRequest creates an mcp.CallToolRequest for testing.
+// Tool name can be provided if the handler under test uses it.
+func NewTestCallToolRequest(toolName string, args map[string]interface{}) mcp.CallToolRequest {
+	return mcp.CallToolRequest{
+		Params: MCPCallToolRequestParams{
+			Name:      toolName,
+			Arguments: args,
+		},
+	}
 }

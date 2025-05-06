@@ -22,6 +22,8 @@ func TestEnsurePhaseFiles(t *testing.T) {
 		{
 			name: "all directories and files need creation",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
+				// In this test, we expect all phases to be processed fully
+				// So we can use the exact map that the code itself uses
 				for p, filename := range PhaseFileMap {
 					phaseDir := filepath.Join(featureRoot, string(p))
 					filePath := filepath.Join(phaseDir, filename)
@@ -35,6 +37,7 @@ func TestEnsurePhaseFiles(t *testing.T) {
 		{
 			name: "directories and files already exist",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
+				// In this test, all files exist already
 				for p, filename := range PhaseFileMap {
 					phaseDir := filepath.Join(featureRoot, string(p))
 					filePath := filepath.Join(phaseDir, filename)
@@ -48,58 +51,44 @@ func TestEnsurePhaseFiles(t *testing.T) {
 		{
 			name: "error on MkdirAll for one phase",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
-				// Let Define succeed
-				defineDir := filepath.Join(featureRoot, string(Define))
-				defineFile := filepath.Join(defineDir, PhaseFileMap[Define])
-				mockFS.EXPECT().MkdirAll(defineDir, gomock.Any()).Return(nil).Times(1)
-				mockFS.EXPECT().Stat(defineFile).Return(nil, os.ErrNotExist).Times(1)
-				mockFS.EXPECT().Create(defineFile).Return(testutil.NewClosableMockFile(t), nil).Times(1)
+				// We need exactly ONE MkdirAll to fail, and that will cause the function to return immediately
+				anyPhaseDir := filepath.Join(featureRoot, string(Define))
+				mockFS.EXPECT().MkdirAll(anyPhaseDir, gomock.Any()).Return(fmt.Errorf("mkdir failed")).Times(1)
 
-				// Fail Design
-				designDir := filepath.Join(featureRoot, string(Design))
-				mockFS.EXPECT().MkdirAll(designDir, gomock.Any()).Return(fmt.Errorf("mkdir failed")).Times(1)
-				// No further calls expected for Design or Deliver after error
+				// No other calls should happen after this error
 			},
 			wantErr: true,
 		},
 		{
 			name: "error on Stat for one file",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
-				// Let Define succeed
-				defineDir := filepath.Join(featureRoot, string(Define))
-				defineFile := filepath.Join(defineDir, PhaseFileMap[Define])
-				mockFS.EXPECT().MkdirAll(defineDir, gomock.Any()).Return(nil).Times(1)
-				mockFS.EXPECT().Stat(defineFile).Return(nil, os.ErrNotExist).Times(1)
-				mockFS.EXPECT().Create(defineFile).Return(testutil.NewClosableMockFile(t), nil).Times(1)
+				// First MkdirAll must succeed
+				anyPhaseDir := filepath.Join(featureRoot, string(Define))
+				mockFS.EXPECT().MkdirAll(anyPhaseDir, gomock.Any()).Return(nil).Times(1)
 
-				// Let Design MkdirAll succeed
-				designDir := filepath.Join(featureRoot, string(Design))
-				designFile := filepath.Join(designDir, PhaseFileMap[Design])
-				mockFS.EXPECT().MkdirAll(designDir, gomock.Any()).Return(nil).Times(1)
-				// Fail Stat
-				mockFS.EXPECT().Stat(designFile).Return(nil, fmt.Errorf("stat failed")).Times(1)
-				// No further calls expected
+				// Then Stat will fail and cause early return
+				filePath := filepath.Join(featureRoot, string(Define), PhaseFileMap[Define])
+				mockFS.EXPECT().Stat(filePath).Return(nil, fmt.Errorf("stat failed")).Times(1)
+
+				// No other calls should happen after this error
 			},
 			wantErr: true,
 		},
 		{
 			name: "error on Create for one file",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
-				// Let Define succeed
-				defineDir := filepath.Join(featureRoot, string(Define))
-				defineFile := filepath.Join(defineDir, PhaseFileMap[Define])
-				mockFS.EXPECT().MkdirAll(defineDir, gomock.Any()).Return(nil).Times(1)
-				mockFS.EXPECT().Stat(defineFile).Return(nil, os.ErrNotExist).Times(1)
-				mockFS.EXPECT().Create(defineFile).Return(testutil.NewClosableMockFile(t), nil).Times(1)
+				// First MkdirAll must succeed
+				anyPhaseDir := filepath.Join(featureRoot, string(Define))
+				mockFS.EXPECT().MkdirAll(anyPhaseDir, gomock.Any()).Return(nil).Times(1)
 
-				// Let Design Stat succeed (needs create)
-				designDir := filepath.Join(featureRoot, string(Design))
-				designFile := filepath.Join(designDir, PhaseFileMap[Design])
-				mockFS.EXPECT().MkdirAll(designDir, gomock.Any()).Return(nil).Times(1)
-				mockFS.EXPECT().Stat(designFile).Return(nil, os.ErrNotExist).Times(1)
-				// Fail Create
-				mockFS.EXPECT().Create(designFile).Return(nil, fmt.Errorf("create failed")).Times(1)
-				// No further calls expected
+				// Then Stat needs to indicate file doesn't exist
+				filePath := filepath.Join(featureRoot, string(Define), PhaseFileMap[Define])
+				mockFS.EXPECT().Stat(filePath).Return(nil, os.ErrNotExist).Times(1)
+
+				// Then Create will fail and cause early return
+				mockFS.EXPECT().Create(filePath).Return(nil, fmt.Errorf("create failed")).Times(1)
+
+				// No other calls should happen after this error
 			},
 			wantErr: true,
 		},

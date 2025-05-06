@@ -49,6 +49,27 @@ files_modified:
   - path: "internal/project/project_interfaces_mocks_test.go"
     status: "generated"
     summary: "Generated gomock mocks for project internal service interfaces (StorageService, etc.) into package project."
+  - path: "internal/core/rules/rules_test.go"
+    status: "created"
+    summary: "Added unit tests for RuleGenerator and rules.Service using gomock."
+  - path: "internal/core/rules/mocks/mock_generator.go"
+    status: "generated"
+    summary: "Generated gomock mock for rules.Generator interface."
+  - path: "internal/core/feature/feature_test.go"
+    status: "created"
+    summary: "Added unit tests for feature.Service methods using gomock."
+  - path: "internal/core/phase/phase_test.go"
+    status: "created"
+    summary: "Added unit tests for phase.EnsurePhaseFiles using gomock."
+  - path: "internal/cli/command/create_test.go"
+    status: "created"
+    summary: "Added unit tests for CreateCommand using MockProjectService."
+  - path: "internal/cli/command/serve_test.go"
+    status: "created"
+    summary: "Added unit tests for ServeCommand and NewServeCommand functions."
+  - path: "internal/mcp/tools/tools_test.go"
+    status: "modified"
+    summary: "Added unit tests for HandleInit and HandleCreate MCP tool handlers using MockProjectService."
 
 tasks:
   - id: "step-1"
@@ -157,37 +178,18 @@ tasks:
     name: "Implement Unit Tests for `internal/cli`"
     description: |
       - Wrote tests for `InitCommand.run` and `CreateCommand.run` methods in `internal/cli/command`, injecting `MockProjectService`.
+      - Added tests for `ServeCommand.Run` and core functions.
       - Optionally, add integration-style tests for `cli.Execute` using Cobra's testing helpers if deemed necessary.
-    status: "in-progress"
+    status: "completed"
 
   - id: "step-13"
     name: "Implement Unit Tests for `internal/mcp`"
     description: |
       - Write tests for MCP tool handlers (e.g., `HandleMove`), passing in a `gomock`-generated mock `ProjectService`.
-    status: "pending"
+    status: "completed"
 
   - id: "step-14"
     name: "Integrate Tests into CI Pipeline"
     description: |
       - Modify the relevant GitHub Actions workflow to add a step executing `go test ./...` before build/release jobs.
-    status: "pending"
-
-  - path: "internal/core/rules/rules_test.go"
-    status: "created"
-    summary: "Added unit tests for RuleGenerator and rules.Service using gomock."
-
-  - path: "internal/core/rules/mocks/mock_generator.go"
-    status: "generated"
-    summary: "Generated gomock mock for rules.Generator interface."
-
-  - path: "internal/core/feature/feature_test.go"
-    status: "created"
-    summary: "Added unit tests for feature.Service methods using gomock."
-
-  - path: "internal/core/phase/phase_test.go"
-    status: "created"
-    summary: "Added unit tests for phase.EnsurePhaseFiles using gomock."
-
-  - path: "internal/cli/command/create_test.go"
-    status: "created"
-    summary: "Added unit tests for CreateCommand using projectFactory and gomocks."
+    status: "in-progress"

@@ -29,7 +29,7 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 	ruleGenerator := rules.NewRuleGenerator()
 	rulesSvc := rules.NewService(workspaceRoot, cursorRulesDir, ruleGenerator, fs)
 
-	// Initialize project
+	// Initialize real project instance. It implements ProjectService.
 	proj := project.New(workspaceRoot, fs, sessionSvc, featureSvc, rulesSvc)
 
 	// Create MCP server
@@ -41,7 +41,7 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 		// TODO: Integrate project with MCP service/tools here (e.g. pass to tool handlers)
 	)
 
-	// Register tools
+	// Register tools, proj (a *project.Project) satisfies project.ProjectService.
 	tools.RegisterTools(mcpServer, proj)
 
 	return mcpServer

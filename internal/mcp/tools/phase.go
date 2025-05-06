@@ -20,7 +20,8 @@ var MoveTool = mcp.NewTool("d3_phase_move",
 )
 
 // HandleMove returns a handler for the d3_phase_move tool
-func HandleMove(proj *project.Project) server.ToolHandlerFunc {
+// It now accepts project.ProjectService interface for testability.
+func HandleMove(proj project.ProjectService) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract phase parameter
 		targetPhaseStr, ok := request.Params.Arguments["to"].(string)
@@ -29,6 +30,7 @@ func HandleMove(proj *project.Project) server.ToolHandlerFunc {
 		}
 
 		if proj == nil {
+			// This check is still valid, though type is now interface
 			return mcp.NewToolResultError("Internal error: Project context is nil"), nil
 		}
 
@@ -41,8 +43,11 @@ func HandleMove(proj *project.Project) server.ToolHandlerFunc {
 		// Call project's ChangePhase function with the parsed phase
 		result, err := proj.ChangePhase(ctx, targetPhase)
 		if err != nil {
-			if err.Error() == "no active feature" {
+			// Specific error check based on common project errors
+			if err == project.ErrNoActiveFeature {
 				return mcp.NewToolResultError("Cannot move phase: no active feature"), nil
+			} else if err == project.ErrNotInitialized {
+				return mcp.NewToolResultError("Cannot move phase: project not initialized"), nil
 			}
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to change phase: %v", err)), nil
 		}
