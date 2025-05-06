@@ -2,10 +2,7 @@
   "mcpServers": {
     "d3": {
       "command": "d3",
-      "args": ["serve"],
-      "env": {
-        "D3_WORKSPACE_PATH": "/Users/imcclaskey/workspace/d3"
-      }
+      "args": ["serve --workdir /Users/imcclaskey/Developer/repos/d3"]
     }
   }
 } 

@@ -16,7 +16,8 @@ var InitTool = mcp.NewTool("d3_init",
 )
 
 // HandleInit returns a handler for the d3_init tool
-func HandleInit(project *project.Project) server.ToolHandlerFunc {
+// It now accepts project.ProjectService interface for testability.
+func HandleInit(proj project.ProjectService) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract clean flag
 		cleanFlag := false
@@ -24,10 +25,15 @@ func HandleInit(project *project.Project) server.ToolHandlerFunc {
 			cleanFlag = cleanVal
 		}
 
+		if proj == nil {
+			return mcp.NewToolResultError("Internal error: Project context is nil"), nil
+		}
+
 		// Call project Init
-		result, err := project.Init(cleanFlag)
+		result, err := proj.Init(cleanFlag)
 		if err != nil {
-			return mcp.NewToolResultError(fmt.Sprintf("System error: %v", err)), nil
+			// For other errors, return them as system errors
+			return mcp.NewToolResultError(fmt.Sprintf("System error initializing project: %v", err)), nil
 		}
 
 		// Return formatted result

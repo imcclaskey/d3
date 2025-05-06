@@ -7,8 +7,10 @@ import (
 )
 
 // RegisterTools registers all available d3 tools with the MCP server
-func RegisterTools(mcpServer *server.MCPServer, proj *project.Project) {
+// It now accepts project.ProjectService.
+func RegisterTools(mcpServer *server.MCPServer, proj project.ProjectService) {
 	mcpServer.AddTool(MoveTool, HandleMove(proj))
 	mcpServer.AddTool(CreateTool, HandleCreate(proj))
 	mcpServer.AddTool(InitTool, HandleInit(proj))
+	// Add other tools here
 }

@@ -2,8 +2,14 @@
 package mcp
 
 import (
+	"path/filepath"
+
 	"github.com/mark3labs/mcp-go/server"
 
+	"github.com/imcclaskey/d3/internal/core/feature"
+	"github.com/imcclaskey/d3/internal/core/ports"
+	"github.com/imcclaskey/d3/internal/core/rules"
+	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/mcp/tools"
 	"github.com/imcclaskey/d3/internal/project"
 	"github.com/imcclaskey/d3/internal/version"
@@ -11,8 +17,20 @@ import (
 
 // NewServer creates a new MCP server for d3
 func NewServer(workspaceRoot string) *server.MCPServer {
-	// Initialize project
-	proj := project.New(workspaceRoot)
+	// Initialize services
+	fs := ports.RealFileSystem{}
+
+	d3Dir := filepath.Join(workspaceRoot, ".d3")
+	featuresDir := filepath.Join(d3Dir, "features")
+	cursorRulesDir := filepath.Join(workspaceRoot, ".cursor", "rules")
+
+	sessionSvc := session.NewStorage(d3Dir, fs)
+	featureSvc := feature.NewService(workspaceRoot, featuresDir, d3Dir, fs)
+	ruleGenerator := rules.NewRuleGenerator()
+	rulesSvc := rules.NewService(workspaceRoot, cursorRulesDir, ruleGenerator, fs)
+
+	// Initialize real project instance. It implements ProjectService.
+	proj := project.New(workspaceRoot, fs, sessionSvc, featureSvc, rulesSvc)
 
 	// Create MCP server
 	mcpServer := server.NewMCPServer(
@@ -23,7 +41,7 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 		// TODO: Integrate project with MCP service/tools here (e.g. pass to tool handlers)
 	)
 
-	// Register tools
+	// Register tools, proj (a *project.Project) satisfies project.ProjectService.
 	tools.RegisterTools(mcpServer, proj)
 
 	return mcpServer

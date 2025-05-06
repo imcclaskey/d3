@@ -10,7 +10,7 @@ import (
 
 	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/phase"
-	"github.com/imcclaskey/d3/internal/core/rules"
+	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/session"
 )
 
@@ -64,6 +64,36 @@ func (r *Result) FormatMCP() string {
 	return r.Message
 }
 
+//go:generate mockgen -source=project.go -destination=project_interfaces_mocks_test.go -package=project StorageService,FeatureServicer,RulesServicer
+//go:generate mockgen -destination=mocks/mock_project_service.go -package=mocks github.com/imcclaskey/d3/internal/project ProjectService
+
+// StorageService defines the interface for session storage operations.
+type StorageService interface {
+	Load() (*session.SessionState, error)
+	Save(*session.SessionState) error
+}
+
+// FeatureServicer defines the interface for feature management operations.
+type FeatureServicer interface {
+	CreateFeature(ctx context.Context, featureName string) (*feature.FeatureInfo, error)
+}
+
+// RulesServicer defines the interface for rule management operations.
+type RulesServicer interface {
+	RefreshRules(feature string, phaseStr string) error
+}
+
+// ProjectService defines the interface for project operations used by CLI and MCP.
+// This allows for mocking the entire project service in tests for commands/tools.
+type ProjectService interface {
+	Init(clean bool) (*Result, error)
+	CreateFeature(ctx context.Context, featureName string) (*Result, error)
+	ChangePhase(ctx context.Context, targetPhase session.Phase) (*Result, error)
+	IsInitialized() bool
+	RequiresInitialized() error
+	// Add other project methods here as they are consumed by CLI/MCP
+}
+
 // State manages the shared state of the project
 type State struct {
 	// Path configuration
@@ -83,27 +113,23 @@ type State struct {
 // Project coordinates all d3 services
 type Project struct {
 	state         *State
-	features      *feature.Service
-	session       *session.Storage
-	rules         *rules.Service
+	features      FeatureServicer
+	session       StorageService
+	rules         RulesServicer
+	fs            ports.FileSystem
 	isInitialized bool // Tracks whether the project has been initialized
 }
 
-// New creates a new project instance from project root
-func New(projectRoot string) *Project {
+// New creates a new project instance from project root, now with dependency injection
+func New(projectRoot string, fs ports.FileSystem, sessionSvc StorageService, featureSvc FeatureServicer, rulesSvc RulesServicer) *Project {
 	state := newState(projectRoot)
 
-	// Create services
-	sessionStorage := session.NewStorage(state.D3Dir)
-	rulesService := rules.NewService(state.ProjectRoot, state.CursorRulesDir)
-	featuresService := feature.NewService(state.ProjectRoot, state.FeaturesDir, state.D3Dir)
-
-	// Create project
 	return &Project{
 		state:         state,
-		session:       sessionStorage,
-		rules:         rulesService,
-		features:      featuresService,
+		session:       sessionSvc,
+		rules:         rulesSvc,
+		features:      featureSvc,
+		fs:            fs,
 		isInitialized: false, // Will be set to true after checking or initializing
 	}
 }
@@ -125,7 +151,7 @@ func newState(projectRoot string) *State {
 // IsInitialized checks if the project is initialized
 func (p *Project) IsInitialized() bool {
 	// Check if .d3 directory exists
-	_, err := os.Stat(p.state.D3Dir)
+	_, err := p.fs.Stat(p.state.D3Dir)
 	return err == nil
 }
 
@@ -146,7 +172,7 @@ func (p *Project) Init(clean bool) (*Result, error) {
 
 	// If clean, remove the d3 directory
 	if clean && p.IsInitialized() {
-		if err := os.RemoveAll(p.state.D3Dir); err != nil {
+		if err := p.fs.RemoveAll(p.state.D3Dir); err != nil {
 			return nil, fmt.Errorf("failed to clean existing d3 directory: %w", err)
 		}
 	}
@@ -158,7 +184,7 @@ func (p *Project) Init(clean bool) (*Result, error) {
 	}
 
 	for _, dir := range directories {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := p.fs.MkdirAll(dir, 0755); err != nil {
 			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
@@ -260,9 +286,11 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 	hasImpact := false
 	featureDir := filepath.Join(p.state.FeaturesDir, currentFeature)
 	phaseDir := filepath.Join(featureDir, targetPhase.String())
-	if _, err := os.Stat(phaseDir); err == nil {
+	if _, err := p.fs.Stat(phaseDir); err == nil {
 		// Phase directory exists, probably has files
 		hasImpact = true
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to check phase directory %s: %w", phaseDir, err)
 	}
 
 	// Update the session state with the new phase
@@ -277,7 +305,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 	}
 
 	// Ensure standard phase files exist for the new phase
-	if err := phase.EnsurePhaseFiles(featureDir); err != nil {
+	if err := phase.EnsurePhaseFiles(p.fs, featureDir); err != nil {
 		// Log the error but don't necessarily block the phase change
 		// Might want to reconsider this based on desired behavior
 		fmt.Fprintf(os.Stderr, "warning: failed to ensure phase files for %s: %v\n", currentFeature, err)

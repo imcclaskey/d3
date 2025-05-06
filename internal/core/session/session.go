@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/imcclaskey/d3/internal/core/ports"
 )
 
 // Phase represents a development phase
@@ -83,24 +85,26 @@ type SessionState struct {
 // Storage handles session state persistence
 type Storage struct {
 	sessionFile string
+	fs          ports.FileSystem
 }
 
 // NewStorage creates a new session storage handler
-func NewStorage(d3Dir string) *Storage {
+func NewStorage(d3Dir string, fs ports.FileSystem) *Storage {
 	return &Storage{
 		sessionFile: filepath.Join(d3Dir, "session.yaml"),
+		fs:          fs,
 	}
 }
 
 // Load loads the current session state from disk
 func (s *Storage) Load() (*SessionState, error) {
 	// If session file doesn't exist, error with the targeted path
-	if _, err := os.Stat(s.sessionFile); os.IsNotExist(err) {
+	if _, err := s.fs.Stat(s.sessionFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("session file does not exist: %s", s.sessionFile)
 	}
 
 	// Read session file
-	data, err := os.ReadFile(s.sessionFile)
+	data, err := s.fs.ReadFile(s.sessionFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read session file: %w", err)
 	}
@@ -120,7 +124,7 @@ func (s *Storage) Save(state *SessionState) error {
 	state.LastModified = time.Now()
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(s.sessionFile), 0755); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(s.sessionFile), 0755); err != nil {
 		return fmt.Errorf("failed to create session file directory: %w", err)
 	}
 
@@ -131,7 +135,7 @@ func (s *Storage) Save(state *SessionState) error {
 	}
 
 	// Write session file
-	if err := os.WriteFile(s.sessionFile, data, 0644); err != nil {
+	if err := s.fs.WriteFile(s.sessionFile, data, 0644); err != nil {
 		return fmt.Errorf("failed to write session file: %w", err)
 	}
 
