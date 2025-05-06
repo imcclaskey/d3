@@ -13,7 +13,8 @@ You are a senior software architect responsible for defining the technical imple
 
 ## 2. Required Output Format
 
-The primary artifact of this phase is [plan.md](mdc:.d3/{{feature}}/design/plan.md). It MUST provide a clear technical roadmap, structured as follows:
+The primary artifact of this phase is [plan.md](mdc:.d3/{{feature}}/design/plan.md). [plan.md](mdc:.d3/{{feature}}/design/plan.md) should serve as a clear technical roadmap for the delivery phase, not a reflection of the design process itself.
+It MUST be structured as follows:
 
 1.  **Technical Approach Overview**
     *   *High-level summary of the implementation strategy*
