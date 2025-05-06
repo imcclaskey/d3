@@ -131,7 +131,7 @@ tasks:
     name: "Implement Unit Tests for `internal/core/phase`"
     description: |
       - Write tests for `phase.EnsurePhaseFiles`, using a `gomock`-generated mock `FileSystem`.
-    status: "pending"
+    status: "completed"
 
   - id: "step-12"
     name: "Implement Unit Tests for `internal/cli`"
@@ -163,3 +163,7 @@ tasks:
   - path: "internal/core/feature/feature_test.go"
     status: "created"
     summary: "Added unit tests for feature.Service methods using gomock."
+
+  - path: "internal/core/phase/phase_test.go"
+    status: "created"
+    summary: "Added unit tests for phase.EnsurePhaseFiles using gomock."
