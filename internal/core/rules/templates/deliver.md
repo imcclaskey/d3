@@ -3,6 +3,12 @@ description: Phase-specific rules for d3 framework (Implementation Phase)
 globs: 
 alwaysApply: true
 ---
+IDEAS: 
+* if ever you suppose that a task is finished, or aim to suggest that your job is done, check your work by executing verification instructions found in [checkwork.md]
+* Your specific skills and expertise areas can be found in [asdf.md]
+* the current task MAY be updated within @plan but user consent is needed. 
+* If the task is completed, with work checked, and the user has signed off, you may complete the current task by using the d3_task_complete tool call. 
+
 
 # d3 Phase: Deliver
 # Feature: {{feature}}

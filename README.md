@@ -131,10 +131,13 @@ project/
 ├── .d3/                  # d3 configuration and feature documentation
 │   ├── features/         # Feature-specific documentation
 │   │   └── my-feature/   # Individual feature folder
-│   │       ├── define.md      # Problem definition and requirements
-│   │       ├── design.md      # Technical implementation plan
-│   │       └── deliver.json   # Implementation progress tracking (or similar)
-│   ├── context.json      # Current feature and phase context (internal)
+│   │       ├── define/        # Define Phase artifacts
+│   │       │   └── problem.md   # Problem definition and requirements
+│   │       ├── design/        # Design Phase artifacts
+│   │       │   └── plan.md      # Technical implementation plan
+│   │       └── deliver/       # Deliver Phase artifacts
+│   │           └── progress.yaml# Implementation progress tracking
+│   ├── session.yaml      # Current feature and phase context (internal)
 │   ├── project.md        # Project overview and business objectives
 │   └── tech.md           # Technology stack documentation
 └── .cursor/              # Example client configuration (e.g., Cursor)
@@ -147,13 +150,13 @@ project/
 
 ## 🔄 How It Works
 
-1.  **Initialization**: `d3 init` sets up the `.d3` directory structure.
+1.  **Initialization**: `d3 init` sets up the `.d3` directory structure, including `project.md` and `tech.md`.
 2.  **Server Start**: `d3 serve` launches the MCP server, listening for client connections.
 3.  **Client Connection**: An AI assistant (like Cursor's) connects to the MCP server.
-4.  **Feature Management**: Using MCP tools (like `create_feature`), the AI assistant directs d3 to create feature directories and documentation templates.
-5.  **Phase Management**: MCP tools (like `phase_move`) update the current context (`context.json`) and potentially signal the client to adjust its behavior (e.g., load different rules).
-6.  **AI Guidance**: The AI assistant, aware of the current d3 phase, provides contextually relevant assistance for defining requirements, designing solutions, or delivering code.
-7.  **Documentation**: Work done in each phase is captured in the corresponding markdown or JSON files within the feature's directory.
+4.  **Feature Management**: Using MCP tools (like `create_feature`), the AI assistant directs d3 to create a feature directory (`.d3/features/<feature-name>/`) and its phase subdirectories (`define/`, `design/`, `deliver/`) along with the initial phase files (`problem.md`, `plan.md`, `progress.yaml`).
+5.  **Phase Management**: MCP tools (like `phase_move`) update the current context in `.d3/session.yaml` and potentially signal the client to adjust its behavior (e.g., load different rules or focus on specific phase files).
+6.  **AI Guidance**: The AI assistant, aware of the current d3 phase via the session context, provides contextually relevant assistance for populating `problem.md`, `plan.md`, or generating code tracked in `progress.yaml`.
+7.  **Documentation**: Work done in each phase is captured in the corresponding files within the feature's phase directories.
 
 ## 🤝 Contributing
 
