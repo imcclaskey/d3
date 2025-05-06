@@ -14,21 +14,21 @@
 
 ## 🧠 What is d3?
 
-d3 is a CLI tool that orchestrates intentional, AI-driven development workflows within [Cursor](https://cursor.sh). By imposing a structured, phase-based process managed directly from your terminal, d3 acts as an agent control system that enhances your AI pair programming experience.
+d3 is a CLI tool and Model Context Protocol (MCP) server designed to orchestrate intentional, AI-driven development workflows within environments like [Cursor](https://cursor.sh). By providing a structured, phase-based process managed via MCP tools, d3 acts as an agent control system, enhancing the AI pair programming experience. It guides the AI through distinct phases of software development: defining the problem, designing the solution, and delivering the code.
 
 ### Core Benefits
 
-- **Structured AI Collaboration**: Move beyond chaotic, ad-hoc AI interactions to a predictable, phase-based workflow
-- **Separation of Concerns**: Keep problem definition, solution planning, and implementation distinct and focused
-- **Optimized AI Context**: Provide the right context to your AI agent at each phase for better outcomes
-- **Consistent Documentation**: Automatically generate and maintain technical documentation as you build
+- **Structured AI Collaboration**: Move beyond chaotic, ad-hoc AI interactions to a predictable, phase-based workflow guided by the MCP server.
+- **Separation of Concerns**: Keep problem definition (`define`), solution planning (`design`), and implementation (`deliver`) distinct and focused within each feature.
+- **Optimized AI Context**: Provide the right context and rules to the AI agent at each phase via MCP for better, more relevant outcomes.
+- **Consistent Documentation**: Automatically generate and maintain technical documentation (`define.md`, `design.md`, `deliver.json`) as you build.
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Go 1.21 or higher (for building from source)
-- [Cursor IDE](https://cursor.sh/)
+- An MCP-compatible client (like [Cursor IDE](https://cursor.sh/))
 
 ### Installation
 
@@ -63,21 +63,29 @@ make install
 
 ### Basic Workflow
 
-```bash
-# Initialize d3 in your project
-d3 init
+1.  **Initialize d3**:
+    ```bash
+    # Initialize d3 in your project directory
+    d3 init
+    ```
 
-# Create a new feature
-d3 create my-feature
+2.  **Start the MCP Server**:
+    ```bash
+    # Start the d3 MCP server
+    d3 serve
+    ```
+    This command keeps running, listening for instructions from your AI assistant (e.g., within Cursor).
 
-# Progress through development phases
-d3 phase define     # Define the problem and requirements
-d3 phase design     # Plan the technical implementation
-d3 phase deliver    # Write the actual code
+3.  **Interact via MCP Client (e.g., Cursor)**:
+    *   Use your AI assistant, configured with d3 tools, to interact with the server.
+    *   **Create a Feature**: Ask the AI to "create a new d3 feature named 'my-feature'".
+        *   *Alternatively, you can still use the CLI:* `d3 create my-feature`
+    *   **Move Through Phases**: Instruct the AI to "move to the define phase", "move to the design phase", or "move to the deliver phase".
 
-# Check your current status
-d3 status
-```
+4.  **Develop within Phases**:
+    *   **Define**: Work with the AI to populate `define.md` with requirements.
+    *   **Design**: Collaborate with the AI to outline the technical plan in `design.md`.
+    *   **Deliver**: Generate code with the AI, guided by the design, tracking progress in `deliver.json`.
 
 ## 📋 Development Phases
 
@@ -95,18 +103,26 @@ Translate ideas into a technical blueprint. Design architecture, component inter
 
 Generate code following the technical plan, with progress tracked in `deliver.json`. Focus exclusively on writing high-quality, maintainable code that aligns with the established plan.
 
-## 🛠️ Commands
+## 🛠️ Commands & MCP Tools
 
-| Command | Description |
-|---------|-------------|
-| `d3 init [--clean]` | Initialize d3 in the current workspace |
-| `d3 create <feature>` | Create a new feature and set it as the current context |
-| `d3 enter <feature>` | Set the current feature context |
-| `d3 leave` | Leave the current feature context |
-| `d3 phase <phase>` | Set the current phase (setup, define, design, deliver) |
-| `d3 status` | Show current d3 feature and phase context |
-| `d3 refresh` | Ensure necessary d3 files and directories exist |
-| `d3 version` | Display the current version of d3 |
+d3 primarily interacts via its MCP server, but retains a few core CLI commands.
+
+### CLI Commands
+
+| Command             | Description                                  |
+|---------------------|----------------------------------------------|
+| `d3 init [--clean]` | Initialize d3 in the current workspace       |
+| `d3 create <name>`  | Create a new feature                         |
+| `d3 serve`          | Start the d3 MCP server for AI interaction |
+| `d3 version`        | Display the current version of d3            |
+
+### MCP Tool Functions (Used via AI Assistant)
+
+| MCP Function        | Description                                       |
+|---------------------|---------------------------------------------------|
+| `create_feature`    | Create a new feature and set it as current context |
+| `phase_move`        | Move to a different phase (`define`, `design`, `deliver`) |
+| `get_context`       | (Implicit) Get current feature/phase context       |
 
 ## 📂 Project Structure
 
@@ -117,24 +133,27 @@ project/
 │   │   └── my-feature/   # Individual feature folder
 │   │       ├── define.md      # Problem definition and requirements
 │   │       ├── design.md      # Technical implementation plan
-│   │       └── deliver.json   # Implementation progress tracking
-│   ├── context.json      # Current feature and phase context
+│   │       └── deliver.json   # Implementation progress tracking (or similar)
+│   ├── context.json      # Current feature and phase context (internal)
 │   ├── project.md        # Project overview and business objectives
 │   └── tech.md           # Technology stack documentation
-└── .cursor/              # Cursor IDE configuration
-    └── rules/            # Cursor rules
-        └── d3/           # d3-specific rules for Cursor
+└── .cursor/              # Example client configuration (e.g., Cursor)
+    └── rules/            # Client-side rules
+        └── d3/           # d3-specific rules
             ├── core.gen.mdc     # Core rules for d3
-            └── phase.gen.mdc    # Phase-specific rules
+            └── phase.gen.mdc    # Phase-specific rules (generated by d3 potentially)
 ```
+*(Note: The exact structure of `deliver.json` and client rules might vary)*
 
 ## 🔄 How It Works
 
-1. **Feature Creation**: Each feature gets its own documentation directory with phase-specific files
-2. **Context Setting**: d3 maintains your current feature and phase context in `context.json`
-3. **Rule Generation**: Phase-appropriate rule files are generated for Cursor based on your context
-4. **AI Guidance**: Cursor's AI assistant uses these rules to provide phase-appropriate guidance
-5. **Documentation Tracking**: Progress and decisions are documented throughout the development lifecycle
+1.  **Initialization**: `d3 init` sets up the `.d3` directory structure.
+2.  **Server Start**: `d3 serve` launches the MCP server, listening for client connections.
+3.  **Client Connection**: An AI assistant (like Cursor's) connects to the MCP server.
+4.  **Feature Management**: Using MCP tools (like `create_feature`), the AI assistant directs d3 to create feature directories and documentation templates.
+5.  **Phase Management**: MCP tools (like `phase_move`) update the current context (`context.json`) and potentially signal the client to adjust its behavior (e.g., load different rules).
+6.  **AI Guidance**: The AI assistant, aware of the current d3 phase, provides contextually relevant assistance for defining requirements, designing solutions, or delivering code.
+7.  **Documentation**: Work done in each phase is captured in the corresponding markdown or JSON files within the feature's directory.
 
 ## 🤝 Contributing
 
