@@ -7,6 +7,8 @@ import (
 
 // FileSystem defines an interface for file system operations.
 // This allows for abstraction of the os package for testing or other purposes.
+//
+//go:generate mockgen -destination=mocks/mock_filesystem.go -package=mocks github.com/imcclaskey/d3/internal/core/ports FileSystem
 type FileSystem interface {
 	Stat(name string) (os.FileInfo, error)
 	ReadFile(name string) ([]byte, error)

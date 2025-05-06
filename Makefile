@@ -34,13 +34,21 @@ install:
 	go install $(VERSION_FLAGS) ./d3
 
 # Run tests
+# Includes verbose output, race detector, and coverage reporting (atomic mode recommended with race)
+COVERAGE_FILE=coverage.out
 test:
-	go test -v ./...
+	@rm -f $(COVERAGE_FILE)
+	go test -v -race -cover -covermode=atomic -coverprofile=$(COVERAGE_FILE) ./...
+
+# Show test coverage in browser (optional helper target)
+coverage:
+	go tool cover -html=$(COVERAGE_FILE)
 
 # Clean build artifacts
 clean:
 	rm -rf $(OUTPUT_DIR)
 	rm -rf $(BUILD_DIR)
+	rm -f $(COVERAGE_FILE)
 
 # Build for all platforms
 build-all: clean

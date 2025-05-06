@@ -64,6 +64,8 @@ func (r *Result) FormatMCP() string {
 	return r.Message
 }
 
+//go:generate mockgen -destination=mocks/mock_interfaces.go -package=mocks github.com/imcclaskey/d3/internal/project StorageService,FeatureServicer,RulesServicer
+
 // StorageService defines the interface for session storage operations.
 type StorageService interface {
 	Load() (*session.SessionState, error)
