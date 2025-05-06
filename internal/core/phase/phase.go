@@ -1,3 +1,4 @@
+// Package phase implements core phase operations
 package phase
 
 import (
@@ -24,6 +25,55 @@ var PhaseFileMap = map[Phase]string{
 	Deliver: "progress.yaml",
 }
 
+// Service provides phase management operations
+type Service struct {
+	fs ports.FileSystem
+}
+
+// NewService creates a new phase service
+func NewService(fs ports.FileSystem) *Service {
+	return &Service{
+		fs: fs,
+	}
+}
+
+// EnsurePhaseFiles creates the necessary directories and placeholder files for all standard phases
+// within the given feature's directory. It ensures the directories exist and creates empty
+// files if they are missing.
+func (s *Service) EnsurePhaseFiles(featureRoot string) error {
+	// Process phases in a consistent order
+	orderedPhases := []Phase{Define, Design, Deliver}
+
+	for _, p := range orderedPhases {
+		phaseDir := filepath.Join(featureRoot, string(p))
+		filename := PhaseFileMap[p]
+		filePath := filepath.Join(phaseDir, filename)
+
+		// Ensure the phase directory exists
+		if err := s.fs.MkdirAll(phaseDir, 0755); err != nil {
+			return fmt.Errorf("failed to create phase directory %s: %w", phaseDir, err)
+		}
+
+		// Check if the file exists
+		_, err := s.fs.Stat(filePath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// Create the file if it doesn't exist
+				file, err := s.fs.Create(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to create phase file %s: %w", filePath, err)
+				}
+				file.Close()
+			} else {
+				return fmt.Errorf("failed to check phase file %s: %w", filePath, err)
+			}
+		}
+		// File exists, nothing to do
+	}
+
+	return nil
+}
+
 // EnsurePhaseFiles creates the necessary directories and placeholder files for all standard phases
 // within the given feature's directory. It ensures the directories exist and creates empty
 // files if they are missing.
@@ -31,38 +81,32 @@ func EnsurePhaseFiles(fs ports.FileSystem, featureRoot string) error {
 	// Process phases in a consistent order
 	orderedPhases := []Phase{Define, Design, Deliver}
 
-	for _, phase := range orderedPhases {
-		filename, exists := PhaseFileMap[phase]
-		if !exists {
-			continue // Skip if somehow the phase is not in the map
-		}
-
-		phaseDir := filepath.Join(featureRoot, string(phase))
+	for _, p := range orderedPhases {
+		phaseDir := filepath.Join(featureRoot, string(p))
+		filename := PhaseFileMap[p]
 		filePath := filepath.Join(phaseDir, filename)
 
-		// Create the phase directory if it doesn't exist.
+		// Ensure the phase directory exists
 		if err := fs.MkdirAll(phaseDir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", phaseDir, err)
+			return fmt.Errorf("failed to create phase directory %s: %w", phaseDir, err)
 		}
 
-		// Create the phase file only if it doesn't exist.
+		// Check if the file exists
 		_, err := fs.Stat(filePath)
 		if err != nil {
 			if os.IsNotExist(err) {
-				file, createErr := fs.Create(filePath)
-				if createErr != nil {
-					return fmt.Errorf("failed to create file %s: %w", filePath, createErr)
+				// Create the file if it doesn't exist
+				file, err := fs.Create(filePath)
+				if err != nil {
+					return fmt.Errorf("failed to create phase file %s: %w", filePath, err)
 				}
-				// Close the file immediately after creation to release the handle.
-				if closeErr := file.Close(); closeErr != nil {
-					// Log or handle the error if closing fails, though it's less critical than creation failure.
-					fmt.Fprintf(os.Stderr, "warning: failed to close file %s: %v\n", filePath, closeErr)
-				}
+				file.Close()
 			} else {
-				// Handle other potential errors from os.Stat (e.g., permission issues).
-				return fmt.Errorf("failed to check file status %s: %w", filePath, err)
+				return fmt.Errorf("failed to check phase file %s: %w", filePath, err)
 			}
 		}
+		// File exists, nothing to do
 	}
+
 	return nil
 }

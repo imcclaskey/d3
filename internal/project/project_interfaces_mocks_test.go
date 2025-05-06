@@ -140,6 +140,43 @@ func (mr *MockRulesServicerMockRecorder) RefreshRules(feature, phaseStr interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RefreshRules", reflect.TypeOf((*MockRulesServicer)(nil).RefreshRules), feature, phaseStr)
 }
 
+// MockPhaseServicer is a mock of PhaseServicer interface.
+type MockPhaseServicer struct {
+	ctrl     *gomock.Controller
+	recorder *MockPhaseServicerMockRecorder
+}
+
+// MockPhaseServicerMockRecorder is the mock recorder for MockPhaseServicer.
+type MockPhaseServicerMockRecorder struct {
+	mock *MockPhaseServicer
+}
+
+// NewMockPhaseServicer creates a new mock instance.
+func NewMockPhaseServicer(ctrl *gomock.Controller) *MockPhaseServicer {
+	mock := &MockPhaseServicer{ctrl: ctrl}
+	mock.recorder = &MockPhaseServicerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPhaseServicer) EXPECT() *MockPhaseServicerMockRecorder {
+	return m.recorder
+}
+
+// EnsurePhaseFiles mocks base method.
+func (m *MockPhaseServicer) EnsurePhaseFiles(featureDir string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnsurePhaseFiles", featureDir)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnsurePhaseFiles indicates an expected call of EnsurePhaseFiles.
+func (mr *MockPhaseServicerMockRecorder) EnsurePhaseFiles(featureDir interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsurePhaseFiles", reflect.TypeOf((*MockPhaseServicer)(nil).EnsurePhaseFiles), featureDir)
+}
+
 // MockProjectService is a mock of ProjectService interface.
 type MockProjectService struct {
 	ctrl     *gomock.Controller

@@ -7,6 +7,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/imcclaskey/d3/internal/core/feature"
+	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/rules"
 	"github.com/imcclaskey/d3/internal/core/session"
@@ -28,9 +29,10 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 	featureSvc := feature.NewService(workspaceRoot, featuresDir, d3Dir, fs)
 	ruleGenerator := rules.NewRuleGenerator()
 	rulesSvc := rules.NewService(workspaceRoot, cursorRulesDir, ruleGenerator, fs)
+	phaseSvc := phase.NewService(fs)
 
 	// Initialize real project instance. It implements ProjectService.
-	proj := project.New(workspaceRoot, fs, sessionSvc, featureSvc, rulesSvc)
+	proj := project.New(workspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc)
 
 	// Create MCP server
 	mcpServer := server.NewMCPServer(

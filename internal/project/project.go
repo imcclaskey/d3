@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/imcclaskey/d3/internal/core/feature"
-	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/session"
 )
@@ -64,7 +63,7 @@ func (r *Result) FormatMCP() string {
 	return r.Message
 }
 
-//go:generate mockgen -source=project.go -destination=project_interfaces_mocks_test.go -package=project StorageService,FeatureServicer,RulesServicer
+//go:generate mockgen -source=project.go -destination=project_interfaces_mocks_test.go -package=project StorageService,FeatureServicer,RulesServicer,PhaseServicer
 //go:generate mockgen -destination=mocks/mock_project_service.go -package=mocks github.com/imcclaskey/d3/internal/project ProjectService
 
 // StorageService defines the interface for session storage operations.
@@ -81,6 +80,11 @@ type FeatureServicer interface {
 // RulesServicer defines the interface for rule management operations.
 type RulesServicer interface {
 	RefreshRules(feature string, phaseStr string) error
+}
+
+// PhaseServicer defines the interface for phase management operations.
+type PhaseServicer interface {
+	EnsurePhaseFiles(featureDir string) error
 }
 
 // ProjectService defines the interface for project operations used by CLI and MCP.
@@ -116,18 +120,20 @@ type Project struct {
 	features      FeatureServicer
 	session       StorageService
 	rules         RulesServicer
+	phases        PhaseServicer
 	fs            ports.FileSystem
 	isInitialized bool // Tracks whether the project has been initialized
 }
 
 // New creates a new project instance from project root, now with dependency injection
-func New(projectRoot string, fs ports.FileSystem, sessionSvc StorageService, featureSvc FeatureServicer, rulesSvc RulesServicer) *Project {
+func New(projectRoot string, fs ports.FileSystem, sessionSvc StorageService, featureSvc FeatureServicer, rulesSvc RulesServicer, phasesSvc PhaseServicer) *Project {
 	state := newState(projectRoot)
 
 	return &Project{
 		state:         state,
 		session:       sessionSvc,
 		rules:         rulesSvc,
+		phases:        phasesSvc,
 		features:      featureSvc,
 		fs:            fs,
 		isInitialized: false, // Will be set to true after checking or initializing
@@ -230,12 +236,18 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 	// Update the current feature
 	sessionState.CurrentFeature = featureName
 
-	// Reset phase when changing feature
-	sessionState.CurrentPhase = session.None
+	// Set phase to Define when creating a feature (instead of None)
+	sessionState.CurrentPhase = session.Define
 
 	// Save the session state
 	if err := p.session.Save(sessionState); err != nil {
 		return nil, fmt.Errorf("failed to save session: %w", err)
+	}
+
+	// Ensure standard phase files exist for the feature
+	featureDir := filepath.Join(p.state.FeaturesDir, featureName)
+	if err := p.phases.EnsurePhaseFiles(featureDir); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to ensure phase files for %s: %v\n", featureName, err)
 	}
 
 	// Update the rules with the new context
@@ -252,7 +264,7 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 		p.state.OnStateChanged()
 	}
 
-	return NewResultWithRulesChanged(fmt.Sprintf("Feature '%s' created and set as the current context.", featureName)), nil
+	return NewResultWithRulesChanged(fmt.Sprintf("Feature '%s' created and set to define phase.", featureName)), nil
 }
 
 // ChangePhase changes the current phase of the active feature
@@ -305,7 +317,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 	}
 
 	// Ensure standard phase files exist for the new phase
-	if err := phase.EnsurePhaseFiles(p.fs, featureDir); err != nil {
+	if err := p.phases.EnsurePhaseFiles(featureDir); err != nil {
 		// Log the error but don't necessarily block the phase change
 		// Might want to reconsider this based on desired behavior
 		fmt.Fprintf(os.Stderr, "warning: failed to ensure phase files for %s: %v\n", currentFeature, err)

@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/imcclaskey/d3/internal/core/feature"
+	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/rules"
 	"github.com/imcclaskey/d3/internal/core/session"
@@ -42,9 +43,10 @@ func NewInitCommand() *cobra.Command {
 			featureSvc := feature.NewService(cfg.WorkspaceRoot, cfg.FeaturesDir, cfg.D3Dir, fs)
 			ruleGenerator := rules.NewRuleGenerator()
 			rulesSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
+			phaseSvc := phase.NewService(fs)
 
 			// Assign the real project instance to the command runner for production
-			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, rulesSvc)
+			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc)
 
 			return cmdRunner.run(cmdRunner.clean)
 		},

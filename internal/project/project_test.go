@@ -11,7 +11,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/imcclaskey/d3/internal/core/feature"
-	"github.com/imcclaskey/d3/internal/core/phase"
 	portsmocks "github.com/imcclaskey/d3/internal/core/ports/mocks"
 	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/testutil" // Import shared test utilities
@@ -19,7 +18,7 @@ import (
 
 // Helper to create a default project with gomocks for testing
 // This function now returns all the mocks it creates so they can be used for setting expectations.
-func newTestProjectWithMocks(t *testing.T, ctrl *gomock.Controller) (*Project, *portsmocks.MockFileSystem, *MockStorageService, *MockFeatureServicer, *MockRulesServicer) {
+func newTestProjectWithMocks(t *testing.T, ctrl *gomock.Controller) (*Project, *portsmocks.MockFileSystem, *MockStorageService, *MockFeatureServicer, *MockRulesServicer, *MockPhaseServicer) {
 	t.Helper()
 	projectRoot := t.TempDir() // Using t.TempDir() for proper test isolation
 
@@ -27,9 +26,10 @@ func newTestProjectWithMocks(t *testing.T, ctrl *gomock.Controller) (*Project, *
 	mockSessionSvc := NewMockStorageService(ctrl)
 	mockFeatureSvc := NewMockFeatureServicer(ctrl)
 	mockRulesSvc := NewMockRulesServicer(ctrl)
+	mockPhaseSvc := NewMockPhaseServicer(ctrl)
 
-	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc)
-	return proj, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc
+	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc)
+	return proj, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc
 }
 
 // TestProject_New tests the New function with gomocks
@@ -44,8 +44,9 @@ func TestProject_New_WithGoMock(t *testing.T) {
 	mockSessionSvc := NewMockStorageService(ctrl)
 	mockFeatureSvc := NewMockFeatureServicer(ctrl)
 	mockRulesSvc := NewMockRulesServicer(ctrl)
+	mockPhaseSvc := NewMockPhaseServicer(ctrl)
 
-	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc)
+	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc)
 
 	if proj == nil {
 		t.Fatal("New() returned nil")
@@ -61,6 +62,9 @@ func TestProject_New_WithGoMock(t *testing.T) {
 	}
 	if proj.rules != mockRulesSvc {
 		t.Errorf("Expected rules to be mockRulesSvc")
+	}
+	if proj.phases != mockPhaseSvc {
+		t.Errorf("Expected phases to be mockPhaseSvc")
 	}
 	if proj.state.ProjectRoot != projectRoot {
 		t.Errorf("Expected ProjectRoot to be '%s', got '%s'", projectRoot, proj.state.ProjectRoot)
@@ -105,7 +109,7 @@ func TestProject_IsInitialized(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			proj, mockFS, _, _, _ := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, _, _, _, _ := newTestProjectWithMocks(t, ctrl)
 
 			d3DirForTest := proj.state.D3Dir
 
@@ -143,7 +147,7 @@ func TestProject_RequiresInitialized(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, _, _, _ := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, _, _, _, _ := newTestProjectWithMocks(t, ctrl)
 			d3DirForTest := proj.state.D3Dir
 
 			mockFS.EXPECT().Stat(d3DirForTest).Return(tt.mockStat.info, tt.mockStat.err).Times(1)
@@ -263,7 +267,7 @@ func TestProject_Init(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
 
-			proj, mockFS, mockSession, mockFeature, mockRules := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, mockSession, mockFeature, mockRules, _ := newTestProjectWithMocks(t, ctrl)
 			_ = mockFeature
 
 			d3Dir := proj.state.D3Dir
@@ -297,14 +301,14 @@ func TestProject_CreateFeature(t *testing.T) {
 	tests := []struct {
 		name                       string
 		args                       args
-		setupMocks                 func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer)
+		setupMocks                 func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer)
 		wantErr                    bool
-		verifyProjectStateAndMocks func(t *testing.T, proj *Project, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer)
+		verifyProjectStateAndMocks func(t *testing.T, proj *Project, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer)
 	}{
 		{
 			name: "project not initialized",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 			},
 			wantErr: true,
@@ -312,7 +316,7 @@ func TestProject_CreateFeature(t *testing.T) {
 		{
 			name: "featureSvc.CreateFeature fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(nil, fmt.Errorf("create feature failed")).Times(1)
 			},
@@ -321,7 +325,7 @@ func TestProject_CreateFeature(t *testing.T) {
 		{
 			name: "sessionSvc.Load fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(nil, fmt.Errorf("load session failed")).Times(1)
@@ -331,30 +335,43 @@ func TestProject_CreateFeature(t *testing.T) {
 		{
 			name: "sessionSvc.Save fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
-				mockSession.EXPECT().Save(gomock.Any()).Return(fmt.Errorf("save session failed")).Times(1)
+				mockSession.EXPECT().Save(gomock.Any()).DoAndReturn(func(state *session.SessionState) error {
+					if state.CurrentFeature != "test-feature" {
+						return fmt.Errorf("expected feature test-feature, got %s", state.CurrentFeature)
+					}
+					if state.CurrentPhase != session.Define {
+						return fmt.Errorf("expected phase Define, got %s", state.CurrentPhase)
+					}
+					return fmt.Errorf("save session failed")
+				}).Times(1)
 			},
 			wantErr: true,
 		},
 		{
 			name: "rulesSvc.RefreshRules fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
-				mockRules.EXPECT().RefreshRules("test-feature", string(session.None)).Return(fmt.Errorf("refresh rules failed")).Times(1)
+
+				// Setup expectation for the phase service
+				featureDir := filepath.Join(proj.state.FeaturesDir, "test-feature")
+				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
+
+				mockRules.EXPECT().RefreshRules("test-feature", string(session.Define)).Return(fmt.Errorf("refresh rules failed")).Times(1)
 			},
 			wantErr: true,
 		},
 		{
 			name: "successful feature creation",
 			args: args{ctx: context.Background(), featureName: "new-feature"},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "new-feature").Return(&feature.FeatureInfo{Name: "new-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "old", CurrentPhase: session.Design}, nil).Times(1)
@@ -362,20 +379,25 @@ func TestProject_CreateFeature(t *testing.T) {
 					if state.CurrentFeature != "new-feature" {
 						return fmt.Errorf("expected saved feature new-feature, got %s", state.CurrentFeature)
 					}
-					if state.CurrentPhase != session.None {
-						return fmt.Errorf("expected saved phase None, got %s", state.CurrentPhase)
+					if state.CurrentPhase != session.Define {
+						return fmt.Errorf("expected saved phase Define, got %s", state.CurrentPhase)
 					}
 					return nil
 				}).Times(1)
-				mockRules.EXPECT().RefreshRules("new-feature", string(session.None)).Return(nil).Times(1)
+
+				// Setup expectation for the phase service
+				featureDir := filepath.Join(proj.state.FeaturesDir, "new-feature")
+				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
+
+				mockRules.EXPECT().RefreshRules("new-feature", string(session.Define)).Return(nil).Times(1)
 			},
 			wantErr: false,
-			verifyProjectStateAndMocks: func(t *testing.T, proj *Project, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+			verifyProjectStateAndMocks: func(t *testing.T, proj *Project, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				if proj.state.CurrentFeature != "new-feature" {
 					t.Errorf("Project state CurrentFeature = %s, want new-feature", proj.state.CurrentFeature)
 				}
-				if proj.state.CurrentPhase != session.None {
-					t.Errorf("Project state CurrentPhase = %s, want None", proj.state.CurrentPhase)
+				if proj.state.CurrentPhase != session.Define {
+					t.Errorf("Project state CurrentPhase = %s, want Define", proj.state.CurrentPhase)
 				}
 			},
 		},
@@ -384,10 +406,10 @@ func TestProject_CreateFeature(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, mockSession, mockFeature, mockRules := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, mockSession, mockFeature, mockRules, mockPhase := newTestProjectWithMocks(t, ctrl)
 
 			if tt.setupMocks != nil {
-				tt.setupMocks(proj, mockFS, mockSession, mockFeature, mockRules)
+				tt.setupMocks(proj, mockFS, mockSession, mockFeature, mockRules, mockPhase)
 			}
 
 			_, err := proj.CreateFeature(tt.args.ctx, tt.args.featureName)
@@ -397,7 +419,7 @@ func TestProject_CreateFeature(t *testing.T) {
 			}
 
 			if tt.verifyProjectStateAndMocks != nil {
-				tt.verifyProjectStateAndMocks(t, proj, mockSession, mockFeature, mockRules)
+				tt.verifyProjectStateAndMocks(t, proj, mockSession, mockFeature, mockRules, mockPhase)
 			}
 		})
 	}
@@ -411,15 +433,15 @@ func TestProject_ChangePhase(t *testing.T) {
 	tests := []struct {
 		name                       string
 		args                       args
-		setupMocks                 func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer)
+		setupMocks                 func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer)
 		wantErr                    bool
 		wantResultMsgContains      string // Check if result message contains this substring
-		verifyProjectStateAndMocks func(t *testing.T, proj *Project, mockSession *MockStorageService, mockRules *MockRulesServicer)
+		verifyProjectStateAndMocks func(t *testing.T, proj *Project, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer)
 	}{
 		{
 			name: "project not initialized",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 			},
 			wantErr: true,
@@ -427,7 +449,7 @@ func TestProject_ChangePhase(t *testing.T) {
 		{
 			name: "session.Load fails",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(nil, fmt.Errorf("session load failed")).Times(1)
 			},
@@ -436,7 +458,7 @@ func TestProject_ChangePhase(t *testing.T) {
 		{
 			name: "no active feature",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: ""}, nil).Times(1)
 			},
@@ -445,7 +467,7 @@ func TestProject_ChangePhase(t *testing.T) {
 		{
 			name: "already in target phase",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "feat1", CurrentPhase: session.Design}, nil).Times(1)
 			},
@@ -455,7 +477,7 @@ func TestProject_ChangePhase(t *testing.T) {
 		{
 			name: "session.Save fails after phase change",
 			args: args{ctx: context.Background(), targetPhase: session.Deliver},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "feat1"
 				initialPhase := session.Design
 				phaseDir := filepath.Join(proj.state.FeaturesDir, featureName, session.Deliver.String())
@@ -470,7 +492,7 @@ func TestProject_ChangePhase(t *testing.T) {
 		{
 			name: "rules.RefreshRules fails after phase change",
 			args: args{ctx: context.Background(), targetPhase: session.Deliver},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "feat1"
 				initialPhase := session.Design
 				phaseDir := filepath.Join(proj.state.FeaturesDir, featureName, session.Deliver.String())
@@ -486,7 +508,7 @@ func TestProject_ChangePhase(t *testing.T) {
 		{
 			name: "successful phase change, no existing phase dir",
 			args: args{ctx: context.Background(), targetPhase: session.Deliver},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "feat1"
 				initialPhase := session.Design
 				targetPhaseStr := session.Deliver.String()
@@ -499,18 +521,12 @@ func TestProject_ChangePhase(t *testing.T) {
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules(featureName, targetPhaseStr).Return(nil).Times(1)
 
-				// Expectations for calls made by EnsurePhaseFiles
-				for p, filename := range phase.PhaseFileMap {
-					phaseDir := filepath.Join(featureDir, string(p))
-					filePath := filepath.Join(phaseDir, filename)
-					mockFS.EXPECT().MkdirAll(phaseDir, os.FileMode(0755)).Return(nil).Times(1)
-					mockFS.EXPECT().Stat(filePath).Return(nil, os.ErrNotExist).Times(1)
-					mockFS.EXPECT().Create(filePath).Return(testutil.NewClosableMockFile(t), nil).Times(1)
-				}
+				// Setup expectation for the phase service
+				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
 			},
 			wantErr:               false,
 			wantResultMsgContains: "Moved to deliver phase.",
-			verifyProjectStateAndMocks: func(t *testing.T, proj *Project, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			verifyProjectStateAndMocks: func(t *testing.T, proj *Project, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				if proj.state.CurrentPhase != session.Deliver {
 					t.Errorf("Project state CurrentPhase = %s, want deliver", proj.state.CurrentPhase)
 				}
@@ -519,7 +535,7 @@ func TestProject_ChangePhase(t *testing.T) {
 		{
 			name: "successful phase change, with existing phase dir (hasImpact)",
 			args: args{ctx: context.Background(), targetPhase: session.Define},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "featImpact"
 				initialPhase := session.Design
 				targetPhase := session.Define
@@ -532,17 +548,12 @@ func TestProject_ChangePhase(t *testing.T) {
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules(featureName, targetPhase.String()).Return(nil).Times(1)
 
-				// Expectations for calls made by EnsurePhaseFiles
-				for p, filename := range phase.PhaseFileMap {
-					phaseDir := filepath.Join(featureDir, string(p))
-					filePath := filepath.Join(phaseDir, filename)
-					mockFS.EXPECT().MkdirAll(phaseDir, os.FileMode(0755)).Return(nil).Times(1)
-					mockFS.EXPECT().Stat(filePath).Return(testutil.MockFileInfo{FIsDir: false}, nil).Times(1)
-				}
+				// Setup expectation for the phase service
+				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
 			},
 			wantErr:               false,
 			wantResultMsgContains: "Moved to define phase. Note: Existing files were detected",
-			verifyProjectStateAndMocks: func(t *testing.T, proj *Project, mockSession *MockStorageService, mockRules *MockRulesServicer) {
+			verifyProjectStateAndMocks: func(t *testing.T, proj *Project, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				if proj.state.CurrentPhase != session.Define {
 					t.Errorf("Project state CurrentPhase = %s, want define", proj.state.CurrentPhase)
 				}
@@ -553,10 +564,11 @@ func TestProject_ChangePhase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, mockSession, _, mockRules := newTestProjectWithMocks(t, ctrl) // featureSvc not used by ChangePhase
+			proj, mockFS, mockSession, mockFeature, mockRules, mockPhase := newTestProjectWithMocks(t, ctrl) // featureSvc not used by ChangePhase
+			_ = mockFeature                                                                                  // Explicitly ignore mockFeature as it's not used
 
 			if tt.setupMocks != nil {
-				tt.setupMocks(proj, mockFS, mockSession, mockRules)
+				tt.setupMocks(proj, mockFS, mockSession, mockRules, mockPhase)
 			}
 
 			result, err := proj.ChangePhase(tt.args.ctx, tt.args.targetPhase)
@@ -579,7 +591,7 @@ func TestProject_ChangePhase(t *testing.T) {
 			}
 
 			if tt.verifyProjectStateAndMocks != nil {
-				tt.verifyProjectStateAndMocks(t, proj, mockSession, mockRules)
+				tt.verifyProjectStateAndMocks(t, proj, mockSession, mockRules, mockPhase)
 			}
 		})
 	}
