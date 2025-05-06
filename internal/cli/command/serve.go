@@ -44,9 +44,13 @@ func runServe(workdirFlag string) error {
 	if workdirFlag != "" {
 		// Use the flag value if provided
 		workspaceRoot = workdirFlag
-		// Optional: Add validation to check if the directory exists
-		if _, statErr := os.Stat(workspaceRoot); os.IsNotExist(statErr) {
+		// Check if the directory exists and is accessible
+		_, statErr := os.Stat(workspaceRoot)
+		if os.IsNotExist(statErr) {
 			return fmt.Errorf("specified working directory '%s' does not exist", workspaceRoot)
+		} else if statErr != nil {
+			// This will catch permission errors and other issues
+			return fmt.Errorf("cannot access working directory '%s': %w", workspaceRoot, statErr)
 		}
 	} else {
 		// Use the current working directory as the default
