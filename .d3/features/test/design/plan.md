@@ -90,5 +90,5 @@ The following refactoring steps are designed to be completed sequentially, with 
 ## 4. Considerations
 
 *   **Refactoring Impact:** The initial refactoring (Steps 1-6) touches several core packages and introduces new interfaces and DI patterns. While the aim is for each step to be buildable, careful implementation and verification at each stage are required.
-*   **Mocking Approach:** Standard Go interfaces with hand-written fakes/mocks are the primary mechanism. Avoid external mocking libraries.
+*   **Mocking Approach:** Mocks are generated using the `gomock` library (`github.com/golang/mock/mockgen`) based on defined Go interfaces. `go:generate` directives are used to trigger mock generation.
 *   **Test Coverage:** Goal is significant coverage, focusing on critical logic.
