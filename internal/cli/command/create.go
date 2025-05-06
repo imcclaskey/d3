@@ -7,6 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/imcclaskey/d3/internal/core/feature"
+	"github.com/imcclaskey/d3/internal/core/ports"
+	"github.com/imcclaskey/d3/internal/core/rules"
+	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/project"
 )
 
@@ -58,8 +62,15 @@ func runCreate(featureName string) error {
 
 // Run implements the Command interface
 func (c *CreateCommand) Run(ctx context.Context, cfg Config) (Result, error) {
+	// Initialize services
+	fs := ports.RealFileSystem{}
+	sessionSvc := session.NewStorage(cfg.D3Dir, fs)
+	featureSvc := feature.NewService(cfg.WorkspaceRoot, cfg.FeaturesDir, cfg.D3Dir, fs)
+	ruleGenerator := rules.NewRuleGenerator()
+	rulesSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
+
 	// Initialize project
-	proj := project.New(cfg.WorkspaceRoot)
+	proj := project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, rulesSvc)
 
 	// Create the feature
 	result, err := proj.CreateFeature(ctx, c.featureName)

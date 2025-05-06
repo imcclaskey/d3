@@ -7,6 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/imcclaskey/d3/internal/core/feature"
+	"github.com/imcclaskey/d3/internal/core/ports"
+	"github.com/imcclaskey/d3/internal/core/rules"
+	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/project"
 )
 
@@ -66,8 +70,15 @@ func runInit(clean bool) error {
 
 // Run implements the Command interface
 func (c *InitCommand) Run(ctx context.Context, cfg Config) (Result, error) {
+	// Initialize services
+	fs := ports.RealFileSystem{}
+	sessionSvc := session.NewStorage(cfg.D3Dir, fs)
+	featureSvc := feature.NewService(cfg.WorkspaceRoot, cfg.FeaturesDir, cfg.D3Dir, fs)
+	ruleGenerator := rules.NewRuleGenerator()
+	rulesSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
+
 	// Initialize project instance
-	proj := project.New(cfg.WorkspaceRoot)
+	proj := project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, rulesSvc)
 
 	// Run the project initialization logic
 	result, err := proj.Init(c.clean)
