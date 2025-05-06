@@ -57,6 +57,7 @@ The following refactoring steps are designed to be completed sequentially, with 
     *   Modify the function signature of `phase.EnsurePhaseFiles` to accept `ports.FileSystem` as an argument.
     *   Update the implementation of `phase.EnsurePhaseFiles` to use the injected `FileSystem`.
     *   Update all call sites of `phase.EnsurePhaseFiles` (e.g., within `project.Project.ChangePhase`) to pass the required `ports.FileSystem` instance. (`project.Project` should now have access to `FileSystem` via DI from Step 5).
+    *   **IMPLEMENTED:** Refactored `phase.EnsurePhaseFiles` to use a deterministic ordering of phases rather than relying on Go's map iteration order. This ensures consistent behavior across test runs and in production, utilizing a predefined slice of phases (`Define`, `Design`, `Deliver`). 
     *(Ensures buildable state).*
 
 7.  **Implement Unit Tests for `internal/project`:**
@@ -91,6 +92,11 @@ The following refactoring steps are designed to be completed sequentially, with 
 
 14. **Integrate Tests into CI Pipeline:**
     *   Modify the relevant GitHub Actions workflow to add a step executing `go test ./...` before build/release jobs.
+    *   **IMPLEMENTED:** Created a new CI workflow in `.github/workflows/ci.yml` that runs tests on pull requests and pushes to the main branch. Updated the existing release workflow to run tests before building. Both workflows use `make test` to ensure consistent test execution between local and CI environments.
+    *   **ENHANCED:** Added essentials for test visibility in CI workflows:
+        * Coverage summary displayed directly in GitHub workflow output
+        * GitHub Actions workflow status badge in README to show build/test status
+        * Coverage reports saved as artifacts for future reference
 
 ## 3. Technical Constraints & Requirements
 
@@ -105,3 +111,4 @@ The following refactoring steps are designed to be completed sequentially, with 
 *   **Refactoring Impact:** The initial refactoring (Steps 1-6) touches several core packages and introduces new interfaces and DI patterns. While the aim is for each step to be buildable, careful implementation and verification at each stage are required.
 *   **Mocking Approach:** Mocks are generated using the `gomock` library (`github.com/golang/mock/mockgen`) based on defined Go interfaces. `go:generate` directives are used to trigger mock generation.
 *   **Test Coverage:** Goal is significant coverage, focusing on critical logic.
+*   **Deterministic Behavior:** Special attention must be paid to ensuring deterministic behavior in code that might otherwise exhibit non-determinism (e.g., map iteration in Go). Functions should be designed to produce consistent outputs for consistent inputs to facilitate reliable testing.

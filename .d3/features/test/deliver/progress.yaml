@@ -192,4 +192,4 @@ tasks:
     name: "Integrate Tests into CI Pipeline"
     description: |
       - Modify the relevant GitHub Actions workflow to add a step executing `go test ./...` before build/release jobs.
-    status: "in-progress"
+    status: "completed"

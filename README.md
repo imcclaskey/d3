@@ -4,6 +4,7 @@
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="Status: Alpha">
   <img src="https://img.shields.io/badge/language-go-blue" alt="Language: Go">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT">
+  <img src="https://github.com/imcclaskey/d3/workflows/CI/badge.svg" alt="CI Status">
 </div>
 
 <p align="center">

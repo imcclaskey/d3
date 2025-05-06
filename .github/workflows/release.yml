@@ -24,6 +24,15 @@ jobs:
         id: extract_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
+      - name: Run tests
+        run: make test
+
+      - name: Generate coverage summary
+        run: |
+          echo "# Code Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          make coverage-summary 2>&1 | tee >(cat >> $GITHUB_STEP_SUMMARY)
+        id: coverage
+
       - name: Build binaries
         run: make build-all
 

@@ -40,8 +40,14 @@ test:
 	@rm -f $(COVERAGE_FILE)
 	go test -v -race -cover -covermode=atomic -coverprofile=$(COVERAGE_FILE) ./...
 
+# Generate coverage summary
+coverage-summary:
+	@echo "Code Coverage Summary:"
+	@echo "Total Coverage: $$(go tool cover -func=$(COVERAGE_FILE) | grep total | awk '{print $$3}')"
+	@go tool cover -func=$(COVERAGE_FILE)
+
 # Show test coverage in browser (optional helper target)
-coverage:
+coverage-html:
 	go tool cover -html=$(COVERAGE_FILE)
 
 # Clean build artifacts
