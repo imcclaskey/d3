@@ -9,6 +9,8 @@ import (
 )
 
 // Generator defines the interface for rule content generation
+//
+//go:generate mockgen -destination=mocks/mock_generator.go -package=mocks github.com/imcclaskey/d3/internal/core/rules Generator
 type Generator interface {
 	GeneratePhaseContent(feature, phase string) (string, error)
 	GenerateCoreContent(feature, phase string) (string, error)
