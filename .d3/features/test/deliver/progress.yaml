@@ -1,0 +1,116 @@
+overall_status: "pending"
+files_modified: []
+
+tasks:
+  - id: "step-1"
+    name: "Establish `FileSystem` Port and Adapter"
+    description: |
+      - In a shared package (e.g., `internal/core/ports`), define a `FileSystem` interface (e.g., `ports.FileSystem`) with common file operations (`Stat`, `ReadFile`, `WriteFile`, `MkdirAll`, `ReadDir`, `Create`).
+      - In the same package, implement a concrete `RealFileSystem` (e.g., `ports.RealFileSystem`) that wraps the standard `os` package functions.
+      - In the main application setup (e.g., `d3/main.go` or `internal/cli`), instantiate this `RealFileSystem`. This instance will be used for subsequent dependency injections.
+      (This step ensures the FileSystem provider is ready and the application builds).
+    status: "pending"
+
+  - id: "step-2"
+    name: "Inject `FileSystem` into `internal/core/session.Storage`"
+    description: |
+      - Modify `session.NewStorage` (or equivalent constructor) to accept an argument of type `ports.FileSystem`.
+      - Update methods within `session.Storage` to use the injected `FileSystem` interface instead of direct `os` calls.
+      - Update the main application setup to pass the `RealFileSystem` instance (from Step 1) when creating `session.Storage`.
+      (This step refactors session.Storage and ensures the application builds).
+    status: "pending"
+
+  - id: "step-3"
+    name: "Inject `FileSystem` into `internal/core/feature.Service`"
+    description: |
+      - Modify `feature.NewService` to accept `ports.FileSystem`.
+      - Update methods within `feature.Service` to use the injected `FileSystem`.
+      - Update the main application setup to pass the `RealFileSystem` instance when creating `feature.Service`.
+      (Ensures buildable state).
+    status: "pending"
+
+  - id: "step-4"
+    name: "Refactor `internal/core/rules.Service` for Dependency Injection"
+    description: |
+      - Define a `Generator` interface *within* the `internal/core/rules` package (e.g., `type Generator interface { GenerateRuleStubs(...) ... }`) to represent the rule generation capabilities currently provided by `rules.RuleGenerator`.
+      - Ensure the existing concrete `rules.RuleGenerator` struct implements this new `rules.Generator` interface.
+      - Modify `rules.NewService` to accept `ports.FileSystem` and `rules.Generator` as arguments.
+      - Update methods within `rules.Service` to use the injected `FileSystem` and `Generator`.
+      - Update the main application setup:
+          - Instantiate `rules.RuleGenerator` (if it has its own dependencies, ensure they are provided or refactored similarly if they involve `os` calls).
+          - Pass the `RealFileSystem` instance and the `rules.RuleGenerator` instance (as `rules.Generator`) when creating `rules.Service`.
+      (Ensures buildable state).
+    status: "pending"
+
+  - id: "step-5"
+    name: "Refactor `internal/project.Project` for Dependency Injection and `FileSystem` Usage"
+    description: |
+      - Define service-specific interfaces *within* the `internal/project` package for the services `Project` depends on (e.g., `type Storage interface { GetSession() ... }` for `session.Storage`, `type FeatureService interface { ... }`, `type RulesService interface { ... }`).
+      - Ensure the existing `internal/core/session.Storage`, `internal/core/feature.Service`, and `internal/core/rules.Service` structs (and their constructors) are compatible with and satisfy these new `project`-local interfaces. This might involve ensuring method signatures match.
+      - Modify `project.New` (or equivalent constructor for `Project`) to accept arguments for these `project`-local service interfaces (e.g., `project.Storage`, `project.FeatureService`, `project.RulesService`) AND an argument of type `ports.FileSystem`. The `FileSystem` is for `Project`'s direct use or for passing to callees like `EnsurePhaseFiles`.
+      - Update methods within `project.Project` to use the injected service interfaces and the injected `FileSystem`.
+      - Update the main application setup to:
+          - Pass the already-refactored `session.Storage`, `feature.Service`, and `rules.Service` instances (which now satisfy the `project`-local interfaces) when creating `project.Project`.
+          - Pass the `RealFileSystem` instance to `project.New`.
+      (Ensures buildable state).
+    status: "pending"
+
+  - id: "step-6"
+    name: "Inject `FileSystem` into `internal/core/phase.EnsurePhaseFiles`"
+    description: |
+      - Modify the function signature of `phase.EnsurePhaseFiles` to accept `ports.FileSystem` as an argument.
+      - Update the implementation of `phase.EnsurePhaseFiles` to use the injected `FileSystem`.
+      - Update all call sites of `phase.EnsurePhaseFiles` (e.g., within `project.Project.ChangePhase`) to pass the required `ports.FileSystem` instance. (`project.Project` should now have access to `FileSystem` via DI from Step 5).
+      (Ensures buildable state).
+    status: "pending"
+
+  - id: "step-7"
+    name: "Implement Unit Tests for `internal/project`"
+    description: |
+      - Write tests for `Project` methods, using mock/fake implementations of its dependencies (`Storage`, `FeatureService`, `RulesService`, `FileSystem`) passed via interfaces.
+    status: "pending"
+
+  - id: "step-8"
+    name: "Implement Unit Tests for `internal/core/session`"
+    description: |
+      - Write tests for `session.Storage` methods, using a mock `FileSystem`.
+      - Write tests for `Phase` methods and `ParsePhase`.
+    status: "pending"
+
+  - id: "step-9"
+    name: "Implement Unit Tests for `internal/core/rules`"
+    description: |
+      - Write tests for `rules.Service` methods, using mock `FileSystem` and `Generator`.
+      - (Optional: Write tests for `rules.RuleGenerator` methods separately if its complexity warrants it, potentially requiring further `FileSystem` DI into `RuleGenerator` itself if it uses `os` directly).
+    status: "pending"
+
+  - id: "step-10"
+    name: "Implement Unit Tests for `internal/core/feature`"
+    description: |
+      - Write tests for `feature.Service` methods, using a mock `FileSystem`.
+    status: "pending"
+
+  - id: "step-11"
+    name: "Implement Unit Tests for `internal/core/phase`"
+    description: |
+      - Write tests for `phase.EnsurePhaseFiles`, using a mock `FileSystem`.
+    status: "pending"
+
+  - id: "step-12"
+    name: "Implement Unit Tests for `internal/cli`"
+    description: |
+      - Write tests for individual commands (e.g., `internal/cli/command/create.go`), likely mocking the `Project` service they interact with.
+      - Optionally, add integration-style tests for `cli.Execute` using Cobra's testing helpers if deemed necessary.
+    status: "pending"
+
+  - id: "step-13"
+    name: "Implement Unit Tests for `internal/mcp`"
+    description: |
+      - Write tests for MCP tool handlers (e.g., `HandleMove`), passing in a mock `Project`.
+    status: "pending"
+
+  - id: "step-14"
+    name: "Integrate Tests into CI Pipeline"
+    description: |
+      - Modify the relevant GitHub Actions workflow to add a step executing `go test ./...` before build/release jobs.
+    status: "pending"
