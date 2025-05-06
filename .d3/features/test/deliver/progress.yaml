@@ -5,7 +5,7 @@ files_modified:
     summary: "Defined FileSystem interface, RealFileSystem implementation, and added go:generate directive."
   - path: "internal/project/project.go"
     status: "modified"
-    summary: "Defined service interfaces, refactored for DI, updated methods for FileSystem, updated EnsurePhaseFiles call, added go:generate directive."
+    summary: "Defined service interfaces, refactored for DI, updated methods for FileSystem, updated EnsurePhaseFiles call, added go:generate directive. Defined ProjectService interface and added go:generate for it. Updated go:generate for internal service mocks."
   - path: "internal/core/session/session.go"
     status: "modified"
     summary: "Injected FileSystem into Storage and updated methods to use it."
@@ -20,10 +20,10 @@ files_modified:
     summary: "Updated project.New call to provide new service dependencies."
   - path: "internal/cli/command/init.go"
     status: "modified"
-    summary: "Updated project.New call to provide new service dependencies."
+    summary: "Updated project.New call to provide new service dependencies. Refactored to use an injected ProjectService field instead of projectFactory."
   - path: "internal/cli/command/create.go"
     status: "modified"
-    summary: "Updated project.New call to provide new service dependencies."
+    summary: "Updated project.New call to provide new service dependencies. Refactored to use an injected ProjectService field instead of projectFactory."
   - path: "internal/core/phase/phase.go"
     status: "modified"
     summary: "Injected FileSystem into EnsurePhaseFiles and updated to use it."
@@ -37,6 +37,18 @@ files_modified:
   - path: "internal/project/mocks/mock_interfaces.go"
     status: "generated"
     summary: "Generated gomock mocks for project service interfaces."
+  - path: "internal/cli/command/types.go"
+    status: "modified"
+    summary: "Removed projectFactory variable."
+  - path: "internal/cli/command/init_test.go"
+    status: "modified"
+    summary: "Refactored tests to inject MockProjectService into InitCommand.run method."
+  - path: "internal/project/mocks/mock_project_service.go"
+    status: "generated"
+    summary: "Generated gomock mock for project.ProjectService interface."
+  - path: "internal/project/project_interfaces_mocks_test.go"
+    status: "generated"
+    summary: "Generated gomock mocks for project internal service interfaces (StorageService, etc.) into package project."
 
 tasks:
   - id: "step-1"
@@ -133,17 +145,25 @@ tasks:
       - Write tests for `phase.EnsurePhaseFiles`, using a `gomock`-generated mock `FileSystem`.
     status: "completed"
 
+  - id: "step-11.5"
+    name: "Define ProjectService Interface and Refactor CLI/MCP for DI"
+    description: |
+      - Defined `project.ProjectService` interface.
+      - Generated `MockProjectService` using gomock.
+      - Refactored `InitCommand` and `CreateCommand` in `internal/cli/command` to use `ProjectService` via an unexported field, removing the global `projectFactory`.
+    status: "completed"
+
   - id: "step-12"
     name: "Implement Unit Tests for `internal/cli`"
     description: |
-      - Write tests for individual commands (e.g., `internal/cli/command/create.go`), likely mocking the `Project` service they interact with using `gomock`.
+      - Wrote tests for `InitCommand.run` and `CreateCommand.run` methods in `internal/cli/command`, injecting `MockProjectService`.
       - Optionally, add integration-style tests for `cli.Execute` using Cobra's testing helpers if deemed necessary.
-    status: "pending"
+    status: "in-progress"
 
   - id: "step-13"
     name: "Implement Unit Tests for `internal/mcp`"
     description: |
-      - Write tests for MCP tool handlers (e.g., `HandleMove`), passing in a `gomock`-generated mock `Project`.
+      - Write tests for MCP tool handlers (e.g., `HandleMove`), passing in a `gomock`-generated mock `ProjectService`.
     status: "pending"
 
   - id: "step-14"
@@ -167,3 +187,7 @@ tasks:
   - path: "internal/core/phase/phase_test.go"
     status: "created"
     summary: "Added unit tests for phase.EnsurePhaseFiles using gomock."
+
+  - path: "internal/cli/command/create_test.go"
+    status: "created"
+    summary: "Added unit tests for CreateCommand using projectFactory and gomocks."

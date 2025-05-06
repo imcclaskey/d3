@@ -64,7 +64,8 @@ func (r *Result) FormatMCP() string {
 	return r.Message
 }
 
-//go:generate mockgen -destination=mocks/mock_interfaces.go -package=mocks github.com/imcclaskey/d3/internal/project StorageService,FeatureServicer,RulesServicer
+//go:generate mockgen -source=project.go -destination=project_interfaces_mocks_test.go -package=project StorageService,FeatureServicer,RulesServicer
+//go:generate mockgen -destination=mocks/mock_project_service.go -package=mocks github.com/imcclaskey/d3/internal/project ProjectService
 
 // StorageService defines the interface for session storage operations.
 type StorageService interface {
@@ -80,6 +81,17 @@ type FeatureServicer interface {
 // RulesServicer defines the interface for rule management operations.
 type RulesServicer interface {
 	RefreshRules(feature string, phaseStr string) error
+}
+
+// ProjectService defines the interface for project operations used by CLI and MCP.
+// This allows for mocking the entire project service in tests for commands/tools.
+type ProjectService interface {
+	Init(clean bool) (*Result, error)
+	CreateFeature(ctx context.Context, featureName string) (*Result, error)
+	ChangePhase(ctx context.Context, targetPhase session.Phase) (*Result, error)
+	IsInitialized() bool
+	RequiresInitialized() error
+	// Add other project methods here as they are consumed by CLI/MCP
 }
 
 // State manages the shared state of the project

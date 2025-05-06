@@ -60,22 +60,35 @@ The following refactoring steps are designed to be completed sequentially, with 
     *(Ensures buildable state).*
 
 7.  **Implement Unit Tests for `internal/project`:**
-    *   Write tests for `Project` methods, using mock/fake implementations of its dependencies (`Storage`, `FeatureService`, `RulesService`, `FileSystem`) passed via interfaces.
+    *   Write tests for `Project` methods, using `gomock`-generated mocks for its dependencies (`StorageService`, `FeatureServicer`, `RulesServicer`, `FileSystem`) passed via interfaces.
+
 8.  **Implement Unit Tests for `internal/core/session`:**
-    *   Write tests for `session.Storage` methods, using a mock `FileSystem`.
+    *   Write tests for `session.Storage` methods, using a `gomock`-generated mock `FileSystem`.
     *   Write tests for `Phase` methods and `ParsePhase`.
+
 9.  **Implement Unit Tests for `internal/core/rules`:**
-    *   Write tests for `rules.Service` methods, using mock `FileSystem` and `Generator`.
-    *   (Optional: Write tests for `rules.RuleGenerator` methods separately if its complexity warrants it, potentially requiring further `FileSystem` DI into `RuleGenerator` itself if it uses `os` directly).
+    *   Write tests for `rules.Service` methods, using `gomock`-generated mocks for `FileSystem` and `Generator` interfaces.
+    *   (Optional: Write tests for `rules.RuleGenerator` methods separately).
+
 10. **Implement Unit Tests for `internal/core/feature`:**
-    *   Write tests for `feature.Service` methods, using a mock `FileSystem`.
+    *   Write tests for `feature.Service` methods, using a `gomock`-generated mock `FileSystem`.
+
 11. **Implement Unit Tests for `internal/core/phase`:**
-    *   Write tests for `phase.EnsurePhaseFiles`, using a mock `FileSystem`.
+    *   Write tests for `phase.EnsurePhaseFiles`, using a `gomock`-generated mock `FileSystem`.
+
+**11.5. Define `ProjectService` Interface and Refactor CLI/MCP for DI:**
+    *   In `internal/project/project.go`, define a `ProjectService` interface encompassing methods needed by CLI commands and MCP tools.
+    *   Ensure `project.Project` implements this interface.
+    *   Use `gomock` to generate a mock for `ProjectService` (e.g., into `internal/project/mocks/`).
+    *   Refactor CLI commands (e.g., `InitCommand`, `CreateCommand`) and MCP tool handlers to accept and use an instance of `ProjectService` for their core logic, allowing mock injection for tests.
+
 12. **Implement Unit Tests for `internal/cli`:**
-    *   Write tests for individual commands (e.g., `internal/cli/command/create.go`), likely mocking the `Project` service they interact with.
+    *   Write tests for individual command logic (e.g., the `run` methods of `InitCommand`, `CreateCommand`), injecting a `gomock`-generated `MockProjectService`.
     *   Optionally, add integration-style tests for `cli.Execute` using Cobra's testing helpers if deemed necessary.
+
 13. **Implement Unit Tests for `internal/mcp`:**
-    *   Write tests for MCP tool handlers (e.g., `HandleMove`), passing in a mock `Project`.
+    *   Write tests for MCP tool handlers (e.g., `HandleMove`), injecting a `gomock`-generated `MockProjectService`.
+
 14. **Integrate Tests into CI Pipeline:**
     *   Modify the relevant GitHub Actions workflow to add a step executing `go test ./...` before build/release jobs.
 
