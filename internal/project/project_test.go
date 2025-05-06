@@ -9,7 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
+
+	// "time" // No longer directly needed here if MockFileInfo is external
 
 	"github.com/golang/mock/gomock"
 	"github.com/imcclaskey/d3/internal/core/feature"
@@ -17,23 +18,8 @@ import (
 	portsmocks "github.com/imcclaskey/d3/internal/core/ports/mocks"
 	"github.com/imcclaskey/d3/internal/core/session"
 	projectmocks "github.com/imcclaskey/d3/internal/project/mocks"
+	"github.com/imcclaskey/d3/internal/testutil" // Import shared test utilities
 )
-
-// MockFileInfo is a minimal implementation of os.FileInfo for testing.
-type MockFileInfo struct {
-	FName    string
-	FIsDir   bool
-	FSize    int64
-	FMode    os.FileMode
-	FModTime time.Time
-}
-
-func (mfi MockFileInfo) Name() string       { return mfi.FName }
-func (mfi MockFileInfo) Size() int64        { return mfi.FSize }
-func (mfi MockFileInfo) Mode() os.FileMode  { return mfi.FMode }
-func (mfi MockFileInfo) ModTime() time.Time { return mfi.FModTime }
-func (mfi MockFileInfo) IsDir() bool        { return mfi.FIsDir }
-func (mfi MockFileInfo) Sys() interface{}   { return nil }
 
 // Helper to create a default project with gomocks for testing
 // This function now returns all the mocks it creates so they can be used for setting expectations.
@@ -109,7 +95,7 @@ func TestProject_IsInitialized(t *testing.T) {
 		},
 		{
 			name:         "d3 directory exists",
-			mockStat:     statResult{info: MockFileInfo{FIsDir: true, FName: ".d3"}, err: nil}, // Use MockFileInfo
+			mockStat:     statResult{info: testutil.MockFileInfo{FIsDir: true, FName: ".d3"}, err: nil}, // Use testutil.MockFileInfo
 			expectIsInit: true,
 		},
 		{
@@ -153,7 +139,7 @@ func TestProject_RequiresInitialized(t *testing.T) {
 		},
 		{
 			name:        "initialized",
-			mockStat:    statResult{info: MockFileInfo{FIsDir: true, FName: ".d3"}, err: nil}, // Use MockFileInfo
+			mockStat:    statResult{info: testutil.MockFileInfo{FIsDir: true, FName: ".d3"}, err: nil}, // Use testutil.MockFileInfo
 			expectError: nil,
 		},
 	}
@@ -190,7 +176,7 @@ func TestProject_Init(t *testing.T) {
 			name: "already initialized, not clean",
 			args: args{clean: false},
 			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockRules *projectmocks.MockRulesServicer, d3Dir string, featuresDir string) {
-				mockFS.EXPECT().Stat(d3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Use MockFileInfo
+				mockFS.EXPECT().Stat(d3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 			},
 			wantErr:       false,
 			wantResultMsg: "Project already initialized.",
@@ -223,7 +209,7 @@ func TestProject_Init(t *testing.T) {
 			args: args{clean: true},
 			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockRules *projectmocks.MockRulesServicer, d3Dir string, featuresDir string) {
 				gomock.InOrder(
-					mockFS.EXPECT().Stat(d3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(2), // Use MockFileInfo
+					mockFS.EXPECT().Stat(d3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(2), // Use testutil.MockFileInfo
 					mockFS.EXPECT().RemoveAll(d3Dir).Return(nil).Times(1),
 					mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFS.EXPECT().MkdirAll(featuresDir, os.FileMode(0755)).Return(nil).Times(1),
@@ -238,7 +224,7 @@ func TestProject_Init(t *testing.T) {
 			name: "error on RemoveAll during clean init",
 			args: args{clean: true},
 			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockRules *projectmocks.MockRulesServicer, d3Dir string, featuresDir string) {
-				mockFS.EXPECT().Stat(d3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(2) // Use MockFileInfo
+				mockFS.EXPECT().Stat(d3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(2) // Use testutil.MockFileInfo
 				mockFS.EXPECT().RemoveAll(d3Dir).Return(fmt.Errorf("failed to remove")).Times(1)
 			},
 			wantErr: true,
@@ -331,7 +317,7 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "featureSvc.CreateFeature fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockFeature *projectmocks.MockFeatureServicer, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Use MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(nil, fmt.Errorf("create feature failed")).Times(1)
 			},
 			wantErr: true,
@@ -340,7 +326,7 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "sessionSvc.Load fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockFeature *projectmocks.MockFeatureServicer, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Use MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(nil, fmt.Errorf("load session failed")).Times(1)
 			},
@@ -350,7 +336,7 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "sessionSvc.Save fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockFeature *projectmocks.MockFeatureServicer, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Use MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(fmt.Errorf("save session failed")).Times(1)
@@ -361,7 +347,7 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "rulesSvc.RefreshRules fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockFeature *projectmocks.MockFeatureServicer, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Use MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
@@ -373,7 +359,7 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "successful feature creation",
 			args: args{ctx: context.Background(), featureName: "new-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockFeature *projectmocks.MockFeatureServicer, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Use MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockFeature.EXPECT().CreateFeature(gomock.Any(), "new-feature").Return(&feature.FeatureInfo{Name: "new-feature"}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "old", CurrentPhase: session.Design}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).DoAndReturn(func(state *session.SessionState) error {
@@ -446,7 +432,7 @@ func TestProject_ChangePhase(t *testing.T) {
 			name: "session.Load fails",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Initialized
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(nil, fmt.Errorf("session load failed")).Times(1)
 			},
 			wantErr: true,
@@ -455,8 +441,8 @@ func TestProject_ChangePhase(t *testing.T) {
 			name: "no active feature",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1)
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: ""}, nil).Times(1) // No active feature
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
+				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: ""}, nil).Times(1)
 			},
 			wantErr: true, // Expect ErrNoActiveFeature
 		},
@@ -464,7 +450,7 @@ func TestProject_ChangePhase(t *testing.T) {
 			name: "already in target phase",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *projectmocks.MockStorageService, mockRules *projectmocks.MockRulesServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "feat1", CurrentPhase: session.Design}, nil).Times(1)
 			},
 			wantErr:               false,
@@ -478,7 +464,7 @@ func TestProject_ChangePhase(t *testing.T) {
 				initialPhase := session.Design
 				phaseDir := filepath.Join(proj.state.FeaturesDir, featureName, session.Deliver.String())
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).AnyTimes()
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
 				mockFS.EXPECT().Stat(phaseDir).Return(nil, os.ErrNotExist).Times(1) // Expect Stat on phaseDir
 				mockSession.EXPECT().Save(gomock.Any()).Return(fmt.Errorf("session save failed")).Times(1)
@@ -493,7 +479,7 @@ func TestProject_ChangePhase(t *testing.T) {
 				initialPhase := session.Design
 				phaseDir := filepath.Join(proj.state.FeaturesDir, featureName, session.Deliver.String())
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).AnyTimes()
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
 				mockFS.EXPECT().Stat(phaseDir).Return(nil, os.ErrNotExist).Times(1) // Expect Stat on phaseDir
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
@@ -511,7 +497,7 @@ func TestProject_ChangePhase(t *testing.T) {
 				featureDir := filepath.Join(proj.state.FeaturesDir, featureName)
 				phaseToCheckDir := filepath.Join(featureDir, targetPhaseStr)
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).AnyTimes()
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
 				mockFS.EXPECT().Stat(phaseToCheckDir).Return(nil, os.ErrNotExist).Times(1) // No existing phase dir
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
@@ -550,9 +536,9 @@ func TestProject_ChangePhase(t *testing.T) {
 				featureDir := filepath.Join(proj.state.FeaturesDir, featureName)
 				phaseToCheckDir := filepath.Join(featureDir, targetPhase.String())
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(MockFileInfo{FIsDir: true}, nil).AnyTimes()
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
 				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
-				mockFS.EXPECT().Stat(phaseToCheckDir).Return(MockFileInfo{FIsDir: true}, nil).Times(1) // Phase dir EXISTS
+				mockFS.EXPECT().Stat(phaseToCheckDir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Phase dir EXISTS
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules(featureName, targetPhase.String()).Return(nil).Times(1)
 
@@ -562,7 +548,7 @@ func TestProject_ChangePhase(t *testing.T) {
 					filePath := filepath.Join(phaseDir, filename)
 					mockFS.EXPECT().MkdirAll(phaseDir, os.FileMode(0755)).Return(nil).Times(1)
 					// Simulate files existing this time to see if it matters (it shouldn't for EnsurePhaseFiles logic)
-					mockFS.EXPECT().Stat(filePath).Return(MockFileInfo{FIsDir: false}, nil).Times(1)
+					mockFS.EXPECT().Stat(filePath).Return(testutil.MockFileInfo{FIsDir: false}, nil).Times(1)
 				}
 			},
 			wantErr:               false,

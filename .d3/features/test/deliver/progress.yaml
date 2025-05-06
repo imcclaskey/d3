@@ -112,7 +112,7 @@ tasks:
     description: |
       - Write tests for `session.Storage` methods, using a `gomock`-generated mock `FileSystem`.
       - Write tests for `Phase` methods and `ParsePhase`.
-    status: "pending"
+    status: "completed"
 
   - id: "step-9"
     name: "Implement Unit Tests for `internal/core/rules`"
