@@ -10,6 +10,7 @@ import (
 
 	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/phase"
+	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/rules"
 	"github.com/imcclaskey/d3/internal/core/session"
 )
@@ -86,6 +87,7 @@ type Project struct {
 	features      *feature.Service
 	session       *session.Storage
 	rules         *rules.Service
+	fs            ports.FileSystem
 	isInitialized bool // Tracks whether the project has been initialized
 }
 
@@ -94,6 +96,7 @@ func New(projectRoot string) *Project {
 	state := newState(projectRoot)
 
 	// Create services
+	fileSystem := ports.RealFileSystem{}
 	sessionStorage := session.NewStorage(state.D3Dir)
 	rulesService := rules.NewService(state.ProjectRoot, state.CursorRulesDir)
 	featuresService := feature.NewService(state.ProjectRoot, state.FeaturesDir, state.D3Dir)
@@ -104,6 +107,7 @@ func New(projectRoot string) *Project {
 		session:       sessionStorage,
 		rules:         rulesService,
 		features:      featuresService,
+		fs:            fileSystem,
 		isInitialized: false, // Will be set to true after checking or initializing
 	}
 }
