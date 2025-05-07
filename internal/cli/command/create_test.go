@@ -9,9 +9,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-
-	"github.com/imcclaskey/d3/internal/project" // For project.Result, project.ErrNotInitialized etc.
-	projectmocks "github.com/imcclaskey/d3/internal/project/mocks"
+	"github.com/imcclaskey/d3/internal/project"
 )
 
 // executeCommand helper can still be used if we want to test the full Cobra command,
@@ -21,14 +19,14 @@ func TestFeatureCreateCommand_RunLogic(t *testing.T) {
 	tests := []struct {
 		name                string
 		featureNameArg      string // Argument to the command
-		setupMockProjectSvc func(mockSvc *projectmocks.MockProjectService, featureName string)
+		setupMockProjectSvc func(mockSvc *project.MockProjectService, featureName string)
 		wantErr             bool
 		wantOutputContains  string
 	}{
 		{
 			name:           "successful feature creation",
 			featureNameArg: "my-new-feature",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService, featureName string) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService, featureName string) {
 				mockSvc.EXPECT().CreateFeature(gomock.Any(), featureName).Return(project.NewResultWithRulesChanged("Feature '"+featureName+"' created and set as the current context."), nil).Times(1)
 			},
 			wantErr:            false,
@@ -37,7 +35,7 @@ func TestFeatureCreateCommand_RunLogic(t *testing.T) {
 		{
 			name:           "project not initialized - projectSvc.CreateFeature returns error",
 			featureNameArg: "another-feature",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService, featureName string) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService, featureName string) {
 				mockSvc.EXPECT().CreateFeature(gomock.Any(), featureName).Return(nil, project.ErrNotInitialized).Times(1)
 			},
 			wantErr:            true,
@@ -46,7 +44,7 @@ func TestFeatureCreateCommand_RunLogic(t *testing.T) {
 		{
 			name:           "feature creation fails with generic error",
 			featureNameArg: "fail-feature",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService, featureName string) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService, featureName string) {
 				mockSvc.EXPECT().CreateFeature(gomock.Any(), featureName).Return(nil, fmt.Errorf("internal create error")).Times(1)
 			},
 			wantErr:            true,
@@ -57,7 +55,7 @@ func TestFeatureCreateCommand_RunLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockProjectSvc := projectmocks.NewMockProjectService(ctrl)
+			mockProjectSvc := project.NewMockProjectService(ctrl)
 
 			if tt.setupMockProjectSvc != nil {
 				tt.setupMockProjectSvc(mockProjectSvc, tt.featureNameArg)

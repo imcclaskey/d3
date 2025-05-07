@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/imcclaskey/d3/internal/project"
-	projectmocks "github.com/imcclaskey/d3/internal/project/mocks"
 )
 
 func TestNewFeatureEnterCommand(t *testing.T) {
@@ -47,13 +46,13 @@ func TestFeatureEnterCommand_RunLogic(t *testing.T) {
 
 	tests := []struct {
 		name                string
-		setupMockProjectSvc func(mockSvc *projectmocks.MockProjectService)
+		setupMockProjectSvc func(mockSvc *project.MockProjectService)
 		wantErr             bool
 		wantOutputContains  string
 	}{
 		{
 			name: "successful enter",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().EnterFeature(gomock.Any(), featureName).
 					Return(project.NewResultWithRulesChanged("Entered feature 'my-test-feature' in phase 'design'."), nil).Times(1)
 			},
@@ -62,7 +61,7 @@ func TestFeatureEnterCommand_RunLogic(t *testing.T) {
 		},
 		{
 			name: "enter feature fails",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().EnterFeature(gomock.Any(), featureName).
 					Return(nil, fmt.Errorf("feature not found or invalid")).Times(1)
 			},
@@ -74,7 +73,7 @@ func TestFeatureEnterCommand_RunLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockProjectSvc := projectmocks.NewMockProjectService(ctrl)
+			mockProjectSvc := project.NewMockProjectService(ctrl)
 
 			if tt.setupMockProjectSvc != nil {
 				tt.setupMockProjectSvc(mockProjectSvc)

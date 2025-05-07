@@ -12,7 +12,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/imcclaskey/d3/internal/project"
-	projectmocks "github.com/imcclaskey/d3/internal/project/mocks"
 )
 
 func TestNewExitCommand(t *testing.T) {
@@ -39,13 +38,13 @@ func TestNewExitCommand(t *testing.T) {
 func TestExitCommand_RunLogic(t *testing.T) {
 	tests := []struct {
 		name                string
-		setupMockProjectSvc func(mockSvc *projectmocks.MockProjectService)
+		setupMockProjectSvc func(mockSvc *project.MockProjectService)
 		wantErr             bool
 		wantOutputContains  string
 	}{
 		{
 			name: "successful exit",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().ExitFeature(gomock.Any()).
 					Return(project.NewResultWithRulesChanged("Exited feature 'old-feat'. No active feature. Cursor rules cleared."), nil).Times(1)
 			},
@@ -54,7 +53,7 @@ func TestExitCommand_RunLogic(t *testing.T) {
 		},
 		{
 			name: "exit fails",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().ExitFeature(gomock.Any()).
 					Return(nil, fmt.Errorf("failed to save session during exit")).Times(1)
 			},
@@ -63,7 +62,7 @@ func TestExitCommand_RunLogic(t *testing.T) {
 		},
 		{
 			name: "exit when no feature active (no-op)",
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().ExitFeature(gomock.Any()).
 					Return(project.NewResult("No active feature to exit."), nil).Times(1)
 			},
@@ -75,7 +74,7 @@ func TestExitCommand_RunLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockProjectSvc := projectmocks.NewMockProjectService(ctrl)
+			mockProjectSvc := project.NewMockProjectService(ctrl)
 
 			if tt.setupMockProjectSvc != nil {
 				tt.setupMockProjectSvc(mockProjectSvc)

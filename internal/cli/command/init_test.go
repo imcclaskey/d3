@@ -9,8 +9,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/imcclaskey/d3/internal/project"                    // For project.Result and error types
-	projectmocks "github.com/imcclaskey/d3/internal/project/mocks" // For MockProjectService
+	"github.com/imcclaskey/d3/internal/project" // For project.Result and error types
 	"github.com/spf13/cobra"
 )
 
@@ -28,14 +27,14 @@ func TestInitCommand_RunLogic(t *testing.T) {
 	tests := []struct {
 		name                string
 		cleanFlag           bool
-		setupMockProjectSvc func(mockSvc *projectmocks.MockProjectService)
+		setupMockProjectSvc func(mockSvc *project.MockProjectService)
 		wantErr             bool
 		wantOutputContains  string
 	}{
 		{
 			name:      "successful init, no clean flag",
 			cleanFlag: false,
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().Init(false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
 			},
 			wantErr:            false,
@@ -44,7 +43,7 @@ func TestInitCommand_RunLogic(t *testing.T) {
 		{
 			name:      "successful init, with clean flag",
 			cleanFlag: true,
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().Init(true).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
 			},
 			wantErr:            false,
@@ -53,7 +52,7 @@ func TestInitCommand_RunLogic(t *testing.T) {
 		{
 			name:      "init fails in projectSvc.Init",
 			cleanFlag: false,
-			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
 				mockSvc.EXPECT().Init(false).Return(nil, fmt.Errorf("project init failed")).Times(1)
 			},
 			wantErr:            true,
@@ -64,7 +63,7 @@ func TestInitCommand_RunLogic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			mockProjectSvc := projectmocks.NewMockProjectService(ctrl)
+			mockProjectSvc := project.NewMockProjectService(ctrl)
 
 			if tt.setupMockProjectSvc != nil {
 				tt.setupMockProjectSvc(mockProjectSvc)
