@@ -17,7 +17,7 @@ import (
 // executeCommand helper can still be used if we want to test the full Cobra command,
 // but for unit testing the logic inside 'run', we call it directly.
 
-func TestCreateCommand_RunLogic(t *testing.T) {
+func TestFeatureCreateCommand_RunLogic(t *testing.T) {
 	tests := []struct {
 		name                string
 		featureNameArg      string // Argument to the command
@@ -63,7 +63,7 @@ func TestCreateCommand_RunLogic(t *testing.T) {
 				tt.setupMockProjectSvc(mockProjectSvc, tt.featureNameArg)
 			}
 
-			cmdInstance := &CreateCommand{
+			cmdInstance := &FeatureCreateCommand{
 				featureName: tt.featureNameArg, // Set the featureName that RunE would set
 				projectSvc:  mockProjectSvc,    // Inject the mock service
 			}
@@ -88,17 +88,17 @@ func TestCreateCommand_RunLogic(t *testing.T) {
 			// rPipe.Close() // Already closed in goroutine
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateCommand.run() error = %v, wantErr %v\nOutput:\n%s", err, tt.wantErr, output)
+				t.Errorf("FeatureCreateCommand.run() error = %v, wantErr %v\nOutput:\n%s", err, tt.wantErr, output)
 				return // Return if error presence is not as expected
 			}
 
 			if !tt.wantErr { // Only check stdout if no error was wanted
 				if !strings.Contains(output, tt.wantOutputContains) {
-					t.Errorf("CreateCommand.run() output = %q, want to contain %q", output, tt.wantOutputContains)
+					t.Errorf("FeatureCreateCommand.run() output = %q, want to contain %q", output, tt.wantOutputContains)
 				}
 			} else if err != nil { // If an error was wanted and we got one, check its content
 				if !strings.Contains(err.Error(), tt.wantOutputContains) {
-					t.Errorf("CreateCommand.run() error string = %q, want to contain %q", err.Error(), tt.wantOutputContains)
+					t.Errorf("FeatureCreateCommand.run() error string = %q, want to contain %q", err.Error(), tt.wantOutputContains)
 				}
 			}
 		})

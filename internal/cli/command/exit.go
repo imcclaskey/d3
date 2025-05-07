@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	// Import necessary core packages for service instantiation
 	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
@@ -15,29 +16,25 @@ import (
 	"github.com/imcclaskey/d3/internal/project"
 )
 
-// FeatureCreateCommand holds dependencies for the feature create command.
-// Note: Renamed from CreateCommand to avoid conflict if a top-level create remains.
-type FeatureCreateCommand struct {
-	featureName string
-	projectSvc  project.ProjectService
+// ExitCommand holds dependencies for the exit command.
+type ExitCommand struct {
+	projectSvc project.ProjectService // Dependency for the project service
 }
 
-// NewFeatureCreateCommand creates a new cobra command for creating features.
-// This is intended to be a subcommand of 'feature'.
-func NewFeatureCreateCommand() *cobra.Command {
-	cmdRunner := &FeatureCreateCommand{}
+// NewExitCommand creates a new cobra command for exiting the current feature context.
+func NewExitCommand() *cobra.Command {
+	cmdRunner := &ExitCommand{}
 	cmd := &cobra.Command{
-		Use:   "create <name>",
-		Short: "Create a new feature and set it as the current context",
-		Args:  cobra.ExactArgs(1),
+		Use:   "exit",
+		Short: "Exit the current feature context, clearing active feature state.",
+		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmdRunner.featureName = args[0]
-
+			// Instantiate ProjectService
 			projectRoot, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("could not determine workspace root: %w", err)
 			}
-			cfg := NewConfig(projectRoot) // Assuming NewConfig is accessible or defined in this package
+			cfg := NewConfig(projectRoot)
 
 			fs := ports.RealFileSystem{}
 			sessionSvc := session.NewStorage(cfg.D3Dir, fs)
@@ -54,17 +51,19 @@ func NewFeatureCreateCommand() *cobra.Command {
 	return cmd
 }
 
-// run is the core logic for feature creation.
-func (c *FeatureCreateCommand) run(ctx context.Context) error {
+// run executes the logic to directly call ProjectService.ExitFeature.
+func (c *ExitCommand) run(ctx context.Context) error {
 	if c.projectSvc == nil {
-		return fmt.Errorf("project service not initialized in FeatureCreateCommand")
+		return fmt.Errorf("project service not initialized in ExitCommand")
 	}
-	// The projectSvc.CreateFeature is the Go function, which is internally consistent
-	// with the d3_feature_create MCP tool name after Task 1.1 MCP rename.
-	result, err := c.projectSvc.CreateFeature(ctx, c.featureName)
+
+	result, err := c.projectSvc.ExitFeature(ctx)
 	if err != nil {
-		return err
+		return err // Return the error from the service call
 	}
+
+	// Print the result message from the project service
 	fmt.Println(result.FormatCLI())
+
 	return nil
 }

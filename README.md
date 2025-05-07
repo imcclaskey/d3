@@ -80,8 +80,12 @@ make install
 3.  **Interact via MCP Client (e.g., Cursor)**:
     *   Use your AI assistant, configured with d3 tools, to interact with the server.
     *   **Create a Feature**: Ask the AI to "create a new d3 feature named 'my-feature'".
-        *   *Alternatively, you can still use the CLI:* `d3 create my-feature`
+        *   *Alternatively, use the CLI:* `d3 feature create my-feature`
+    *   **Enter a Feature**: Once a feature exists, ask the AI to "enter the feature 'my-feature'".
+        *   *Alternatively, use the CLI:* `d3 feature enter my-feature`
     *   **Move Through Phases**: Instruct the AI to "move to the define phase", "move to the design phase", or "move to the deliver phase".
+    *   **Exit a Feature**: When done with a feature, or to switch, ask the AI to "exit the current feature".
+        *   *Alternatively, use the CLI:* `d3 exit`
 
 4.  **Develop within Phases**:
     *   **Define**: Work with the AI to populate `define.md` with requirements.
@@ -110,20 +114,24 @@ d3 primarily interacts via its MCP server, but retains a few core CLI commands.
 
 ### CLI Commands
 
-| Command             | Description                                  |
-|---------------------|----------------------------------------------|
-| `d3 init [--clean]` | Initialize d3 in the current workspace       |
-| `d3 create <name>`  | Create a new feature                         |
-| `d3 serve`          | Start the d3 MCP server for AI interaction |
-| `d3 version`        | Display the current version of d3            |
+| Command                       | Description                                                      |
+|-------------------------------|------------------------------------------------------------------|
+| `d3 init [--clean]`           | Initialize d3 in the current workspace                           |
+| `d3 feature create <name>`    | Create a new feature and set it as the current context           |
+| `d3 feature enter <name>`     | Enter a feature context, resuming its last known phase             |
+| `d3 exit`                     | Exit the current feature context, clearing active feature state. |
+| `d3 serve`                    | Start the d3 MCP server for AI interaction                       |
+| `d3 version`                  | Display the current version of d3                                |
 
 ### MCP Tool Functions (Used via AI Assistant)
 
-| MCP Function        | Description                                       |
-|---------------------|---------------------------------------------------|
-| `create_feature`    | Create a new feature and set it as current context |
-| `phase_move`        | Move to a different phase (`define`, `design`, `deliver`) |
-| `get_context`       | (Implicit) Get current feature/phase context       |
+| MCP Function          | Description                                                        |
+|-----------------------|--------------------------------------------------------------------|
+| `d3_feature_create`   | Create a new feature and set it as current context                 |
+| `d3_feature_enter`    | Enter a feature context, resuming its last known phase             |
+| `d3_feature_exit`     | Exit the current feature context, clearing active feature state    |
+| `d3_phase_move`       | Move to a different phase (`define`, `design`, `deliver`)          |
+| `d3_get_context`      | (Implicit) Get current feature/phase context                       |
 
 ## 📂 Project Structure
 
@@ -136,9 +144,10 @@ project/
 │   │       │   └── problem.md   # Problem definition and requirements
 │   │       ├── design/        # Design Phase artifacts
 │   │       │   └── plan.md      # Technical implementation plan
-│   │       └── deliver/       # Deliver Phase artifacts
-│   │           └── progress.yaml# Implementation progress tracking
-│   ├── session.yaml      # Current feature and phase context (internal)
+│   │       ├── deliver/       # Deliver Phase artifacts
+│   │       │   └── progress.yaml# Implementation progress tracking
+│   │       └── state.yml        # Stores the last active phase for this feature
+│   ├── session.yaml      # Current active feature (internal)
 │   ├── project.md        # Project overview and business objectives
 │   └── tech.md           # Technology stack documentation
 └── .cursor/              # Example client configuration (e.g., Cursor)
@@ -154,9 +163,12 @@ project/
 1.  **Initialization**: `d3 init` sets up the `.d3` directory structure, including `project.md` and `tech.md`.
 2.  **Server Start**: `d3 serve` launches the MCP server, listening for client connections.
 3.  **Client Connection**: An AI assistant (like Cursor's) connects to the MCP server.
-4.  **Feature Management**: Using MCP tools (like `create_feature`), the AI assistant directs d3 to create a feature directory (`.d3/features/<feature-name>/`) and its phase subdirectories (`define/`, `design/`, `deliver/`) along with the initial phase files (`problem.md`, `plan.md`, `progress.yaml`).
-5.  **Phase Management**: MCP tools (like `phase_move`) update the current context in `.d3/session.yaml` and potentially signal the client to adjust its behavior (e.g., load different rules or focus on specific phase files).
-6.  **AI Guidance**: The AI assistant, aware of the current d3 phase via the session context, provides contextually relevant assistance for populating `problem.md`, `plan.md`, or generating code tracked in `progress.yaml`.
+4.  **Feature Management**:
+    *   **Creation**: Using MCP tools (like `d3_feature_create`), the AI directs d3 to create a feature directory (`.d3/features/<feature-name>/`), its phase subdirectories (`define/`, `design/`, `deliver/`), initial phase files (`problem.md`, `plan.md`, `progress.yaml`), and a `state.yml` file to track the feature's last active phase (defaulting to 'define').
+    *   **Entering**: Using `d3_feature_enter`, the AI directs d3 to set the specified feature as active. d3 reads the feature's `state.yml` to resume its last phase and updates `.d3/session.yaml` to mark this feature as the `CurrentFeature`.
+    *   **Exiting**: Using `d3_feature_exit`, the AI directs d3 to clear the `CurrentFeature` from `.d3/session.yaml`.
+5.  **Phase Management**: MCP tools (like `d3_phase_move`) update the `last_active_phase` in the current feature's `.d3/features/<feature-name>/state.yml` and signal the client to adjust its behavior (e.g., load different rules or focus on specific phase files). The in-memory context within d3 is also updated.
+6.  **AI Guidance**: The AI assistant, aware of the current d3 feature and phase (which d3 determines by checking `session.yaml` for the feature and the feature's `state.yml` for the phase), provides contextually relevant assistance for populating `problem.md`, `plan.md`, or generating code tracked in `progress.yaml`.
 7.  **Documentation**: Work done in each phase is captured in the corresponding files within the feature's phase directories.
 
 ## 🤝 Contributing

@@ -11,7 +11,9 @@ import (
 
 	"github.com/golang/mock/gomock"
 	portsmocks "github.com/imcclaskey/d3/internal/core/ports/mocks"
+	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/testutil" // For MockFileInfo
+	"gopkg.in/yaml.v3"
 )
 
 // Helper to create a new service with mock FS for testing
@@ -73,11 +75,26 @@ func TestService_CreateFeature(t *testing.T) {
 			args: args{ctx: context.Background(), featureName: "new-feature"},
 			setupMocks: func(s *Service, mockFS *portsmocks.MockFileSystem, featureName string) {
 				featurePath := filepath.Join(s.featuresDir, featureName)
+				stateFilePath := filepath.Join(featurePath, stateFileName)
 				mockFS.EXPECT().Stat(featurePath).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(stateFilePath, gomock.Any(), os.FileMode(0644)).Return(nil).Times(1)
 			},
 			wantInfo: &FeatureInfo{Name: "new-feature", Path: ""}, // Path will be dynamic based on temp dir
 			wantErr:  false,
+		},
+		{
+			name: "WriteFile for state.yml fails",
+			args: args{ctx: context.Background(), featureName: "state-fail-feature"},
+			setupMocks: func(s *Service, mockFS *portsmocks.MockFileSystem, featureName string) {
+				featurePath := filepath.Join(s.featuresDir, featureName)
+				stateFilePath := filepath.Join(featurePath, stateFileName)
+				mockFS.EXPECT().Stat(featurePath).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(stateFilePath, gomock.Any(), os.FileMode(0644)).Return(fmt.Errorf("write state failed")).Times(1)
+			},
+			wantInfo: nil,
+			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
@@ -288,6 +305,198 @@ func TestService_ListFeatures(t *testing.T) {
 						}
 					}
 				}
+			}
+		})
+	}
+}
+
+// --- New Tests for Phase Management ---
+
+func TestService_GetFeaturePhase(t *testing.T) {
+	tests := []struct {
+		name        string
+		featureName string
+		setupMocks  func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string)
+		wantPhase   session.Phase
+		wantErr     bool
+	}{
+		{
+			name:        "state file exists, valid phase",
+			featureName: "feat1",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				validYAML := []byte("last_active_phase: design")
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(validYAML, nil).Times(1)
+			},
+			wantPhase: session.Design,
+			wantErr:   false,
+		},
+		{
+			name:        "state file exists, empty phase defaults to define",
+			featureName: "feat-empty-phase",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				emptyPhaseYAML := []byte("last_active_phase: \"\"") // Empty string phase
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(emptyPhaseYAML, nil).Times(1)
+			},
+			wantPhase: session.Define,
+			wantErr:   false,
+		},
+		{
+			name:        "state file exists, missing phase key defaults to define",
+			featureName: "feat-missing-key",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				missingKeyYAML := []byte("other_key: value")
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(missingKeyYAML, nil).Times(1)
+			},
+			wantPhase: session.Define,
+			wantErr:   false,
+		},
+		{
+			name:        "state file does not exist, creates default (define)",
+			featureName: "feat-new",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(nil).Times(1)
+				// Expect write with default phase
+				mockFS.EXPECT().WriteFile(stateFilePath, gomock.Any(), gomock.Any()).DoAndReturn(func(path string, data []byte, perm os.FileMode) error {
+					var state featureStateData
+					yaml.Unmarshal(data, &state)
+					if state.LastActivePhase != session.Define {
+						return fmt.Errorf("expected default phase to be define, got %s", state.LastActivePhase)
+					}
+					return nil
+				}).Times(1)
+			},
+			wantPhase: session.Define,
+			wantErr:   false,
+		},
+		{
+			name:        "state file does not exist, MkdirAll fails",
+			featureName: "feat-mkdir-fail",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(fmt.Errorf("mkdir failed")).Times(1)
+			},
+			wantPhase: session.None,
+			wantErr:   true,
+		},
+		{
+			name:        "state file does not exist, WriteFile fails",
+			featureName: "feat-write-fail",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(stateFilePath, gomock.Any(), gomock.Any()).Return(fmt.Errorf("write failed")).Times(1)
+			},
+			wantPhase: session.None,
+			wantErr:   true,
+		},
+		{
+			name:        "ReadFile returns other error",
+			featureName: "feat-read-err",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(nil, fmt.Errorf("random read error")).Times(1)
+			},
+			wantPhase: session.None,
+			wantErr:   true,
+		},
+		{
+			name:        "Unmarshal fails",
+			featureName: "feat-unmarshal-err",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
+				invalidYAML := []byte("last_active_phase: [invalid]")
+				mockFS.EXPECT().ReadFile(stateFilePath).Return(invalidYAML, nil).Times(1)
+			},
+			wantPhase: session.None,
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			s, mockFS := newTestService(t, ctrl)
+			featurePath := filepath.Join(s.featuresDir, tt.featureName)
+			stateFilePath := filepath.Join(featurePath, stateFileName)
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockFS, featurePath, stateFilePath)
+			}
+
+			gotPhase, err := s.GetFeaturePhase(context.Background(), tt.featureName)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Service.GetFeaturePhase() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotPhase != tt.wantPhase {
+				t.Errorf("Service.GetFeaturePhase() gotPhase = %v, want %v", gotPhase, tt.wantPhase)
+			}
+		})
+	}
+}
+
+func TestService_SetFeaturePhase(t *testing.T) {
+	tests := []struct {
+		name        string
+		featureName string
+		phaseToSet  session.Phase
+		setupMocks  func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string, phase session.Phase)
+		wantErr     bool
+	}{
+		{
+			name:        "successful set phase",
+			featureName: "feat-set1",
+			phaseToSet:  session.Deliver,
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string, phase session.Phase) {
+				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(nil).Times(1)
+				// Expect write with the correct phase
+				mockFS.EXPECT().WriteFile(stateFilePath, gomock.Any(), gomock.Any()).DoAndReturn(func(path string, data []byte, perm os.FileMode) error {
+					var state featureStateData
+					yaml.Unmarshal(data, &state)
+					if state.LastActivePhase != phase {
+						return fmt.Errorf("expected phase %s, got %s", phase, state.LastActivePhase)
+					}
+					return nil
+				}).Times(1)
+			},
+			wantErr: false,
+		},
+		{
+			name:        "MkdirAll fails",
+			featureName: "feat-set-mkdir-fail",
+			phaseToSet:  session.Design,
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string, phase session.Phase) {
+				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(fmt.Errorf("mkdir failed")).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name:        "WriteFile fails",
+			featureName: "feat-set-write-fail",
+			phaseToSet:  session.Design,
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string, phase session.Phase) {
+				mockFS.EXPECT().MkdirAll(featurePath, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(stateFilePath, gomock.Any(), gomock.Any()).Return(fmt.Errorf("write failed")).Times(1)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			s, mockFS := newTestService(t, ctrl)
+			featurePath := filepath.Join(s.featuresDir, tt.featureName)
+			stateFilePath := filepath.Join(featurePath, stateFileName)
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockFS, featurePath, stateFilePath, tt.phaseToSet)
+			}
+
+			err := s.SetFeaturePhase(context.Background(), tt.featureName, tt.phaseToSet)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Service.SetFeaturePhase() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

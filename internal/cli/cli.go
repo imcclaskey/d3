@@ -31,9 +31,19 @@ func NewCLI() *CLI {
 // InitCommands initializes all CLI commands
 func (c *CLI) InitCommands() {
 	// Add commands to the root command
-	c.rootCmd.AddCommand(command.NewCreateCommand())
+	// c.rootCmd.AddCommand(command.NewCreateCommand()) // Old create command removed
 	c.rootCmd.AddCommand(command.NewServeCommand())
 	c.rootCmd.AddCommand(command.NewInitCommand())
+
+	// Feature command and its subcommands
+	featureCmd := command.NewFeatureCommand()
+	featureCmd.AddCommand(command.NewFeatureCreateCommand()) // Add create as a subcommand of feature
+	featureCmd.AddCommand(command.NewFeatureEnterCommand())  // Add enter as a subcommand of feature
+	// Future: featureCmd.AddCommand(command.NewFeatureExitCommand()) // Exit added as top-level below
+	c.rootCmd.AddCommand(featureCmd)
+
+	// Add top-level exit command
+	c.rootCmd.AddCommand(command.NewExitCommand())
 
 	// Version command
 	c.rootCmd.AddCommand(&cobra.Command{

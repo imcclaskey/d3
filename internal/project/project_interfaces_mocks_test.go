@@ -103,6 +103,35 @@ func (mr *MockFeatureServicerMockRecorder) CreateFeature(ctx, featureName interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFeature", reflect.TypeOf((*MockFeatureServicer)(nil).CreateFeature), ctx, featureName)
 }
 
+// GetFeaturePhase mocks base method.
+func (m *MockFeatureServicer) GetFeaturePhase(ctx context.Context, featureName string) (session.Phase, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetFeaturePhase", ctx, featureName)
+	ret0, _ := ret[0].(session.Phase)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetFeaturePhase indicates an expected call of GetFeaturePhase.
+func (mr *MockFeatureServicerMockRecorder) GetFeaturePhase(ctx, featureName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFeaturePhase", reflect.TypeOf((*MockFeatureServicer)(nil).GetFeaturePhase), ctx, featureName)
+}
+
+// SetFeaturePhase mocks base method.
+func (m *MockFeatureServicer) SetFeaturePhase(ctx context.Context, featureName string, phase session.Phase) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetFeaturePhase", ctx, featureName, phase)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetFeaturePhase indicates an expected call of SetFeaturePhase.
+func (mr *MockFeatureServicerMockRecorder) SetFeaturePhase(ctx, featureName, phase interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFeaturePhase", reflect.TypeOf((*MockFeatureServicer)(nil).SetFeaturePhase), ctx, featureName, phase)
+}
+
 // MockRulesServicer is a mock of RulesServicer interface.
 type MockRulesServicer struct {
 	ctrl     *gomock.Controller
@@ -228,6 +257,36 @@ func (m *MockProjectService) CreateFeature(ctx context.Context, featureName stri
 func (mr *MockProjectServiceMockRecorder) CreateFeature(ctx, featureName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFeature", reflect.TypeOf((*MockProjectService)(nil).CreateFeature), ctx, featureName)
+}
+
+// EnterFeature mocks base method.
+func (m *MockProjectService) EnterFeature(ctx context.Context, featureName string) (*Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnterFeature", ctx, featureName)
+	ret0, _ := ret[0].(*Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EnterFeature indicates an expected call of EnterFeature.
+func (mr *MockProjectServiceMockRecorder) EnterFeature(ctx, featureName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnterFeature", reflect.TypeOf((*MockProjectService)(nil).EnterFeature), ctx, featureName)
+}
+
+// ExitFeature mocks base method.
+func (m *MockProjectService) ExitFeature(ctx context.Context) (*Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExitFeature", ctx)
+	ret0, _ := ret[0].(*Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExitFeature indicates an expected call of ExitFeature.
+func (mr *MockProjectServiceMockRecorder) ExitFeature(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExitFeature", reflect.TypeOf((*MockProjectService)(nil).ExitFeature), ctx)
 }
 
 // Init mocks base method.

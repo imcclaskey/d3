@@ -75,7 +75,6 @@ func ParsePhase(s string) (Phase, error) {
 type SessionState struct {
 	// Current context
 	CurrentFeature string `yaml:"current_feature,omitempty"`
-	CurrentPhase   Phase  `yaml:"current_phase,omitempty"`
 
 	// Meta information
 	LastModified time.Time `yaml:"last_modified,omitempty"`

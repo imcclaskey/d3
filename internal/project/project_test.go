@@ -336,16 +336,16 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "sessionSvc.Save fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
-				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Expect CreateFeature call to feature service
+				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature", Path: filepath.Join(proj.state.FeaturesDir, "test-feature")}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).DoAndReturn(func(state *session.SessionState) error {
+					// Verify the saved state
 					if state.CurrentFeature != "test-feature" {
-						return fmt.Errorf("expected feature test-feature, got %s", state.CurrentFeature)
+						return fmt.Errorf("expected saved feature test-feature, got %s", state.CurrentFeature)
 					}
-					if state.CurrentPhase != session.Define {
-						return fmt.Errorf("expected phase Define, got %s", state.CurrentPhase)
-					}
+					// CurrentPhase is no longer in SessionState, so no check needed here
 					return fmt.Errorf("save session failed")
 				}).Times(1)
 			},
@@ -355,16 +355,14 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "rulesSvc.RefreshRules fails",
 			args: args{ctx: context.Background(), featureName: "test-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
-				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature"}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				featurePath := filepath.Join(proj.state.FeaturesDir, "test-feature")
+				mockFeature.EXPECT().CreateFeature(gomock.Any(), "test-feature").Return(&feature.FeatureInfo{Name: "test-feature", Path: featurePath}, nil).Times(1)
 				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
-
-				// Setup expectation for the phase service
-				featureDir := filepath.Join(proj.state.FeaturesDir, "test-feature")
-				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
-
-				mockRules.EXPECT().RefreshRules("test-feature", string(session.Define)).Return(fmt.Errorf("refresh rules failed")).Times(1)
+				mockPhase.EXPECT().EnsurePhaseFiles(featurePath).Return(nil).Times(1)
+				// RefreshRules should be called with the feature name and the default phase (Define)
+				mockRules.EXPECT().RefreshRules("test-feature", session.Define.String()).Return(fmt.Errorf("refresh rules failed")).Times(1)
 			},
 			wantErr: true,
 		},
@@ -372,30 +370,28 @@ func TestProject_CreateFeature(t *testing.T) {
 			name: "successful feature creation",
 			args: args{ctx: context.Background(), featureName: "new-feature"},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
-				mockFeature.EXPECT().CreateFeature(gomock.Any(), "new-feature").Return(&feature.FeatureInfo{Name: "new-feature"}, nil).Times(1)
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "old", CurrentPhase: session.Design}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				featurePath := filepath.Join(proj.state.FeaturesDir, "new-feature")
+				mockFeature.EXPECT().CreateFeature(gomock.Any(), "new-feature").Return(&feature.FeatureInfo{Name: "new-feature", Path: featurePath}, nil).Times(1)
+				// Load might return old state, CreateFeature logic should overwrite CurrentFeature
+				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "old-feature"}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).DoAndReturn(func(state *session.SessionState) error {
 					if state.CurrentFeature != "new-feature" {
 						return fmt.Errorf("expected saved feature new-feature, got %s", state.CurrentFeature)
 					}
-					if state.CurrentPhase != session.Define {
-						return fmt.Errorf("expected saved phase Define, got %s", state.CurrentPhase)
-					}
+					// CurrentPhase is no longer in SessionState
 					return nil
 				}).Times(1)
-
-				// Setup expectation for the phase service
-				featureDir := filepath.Join(proj.state.FeaturesDir, "new-feature")
-				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
-
-				mockRules.EXPECT().RefreshRules("new-feature", string(session.Define)).Return(nil).Times(1)
+				mockPhase.EXPECT().EnsurePhaseFiles(featurePath).Return(nil).Times(1)
+				// RefreshRules should be called with the new feature and Define phase
+				mockRules.EXPECT().RefreshRules("new-feature", session.Define.String()).Return(nil).Times(1)
 			},
 			wantErr: false,
 			verifyProjectStateAndMocks: func(t *testing.T, proj *Project, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				if proj.state.CurrentFeature != "new-feature" {
 					t.Errorf("Project state CurrentFeature = %s, want new-feature", proj.state.CurrentFeature)
 				}
+				// Verify in-memory phase is set correctly
 				if proj.state.CurrentPhase != session.Define {
 					t.Errorf("Project state CurrentPhase = %s, want Define", proj.state.CurrentPhase)
 				}
@@ -450,7 +446,15 @@ func TestProject_ChangePhase(t *testing.T) {
 			name: "session.Load fails",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Set in-memory state to ensure the initial check passes
+				proj.state.CurrentFeature = "feat-load-fail"
+				proj.state.CurrentPhase = session.Define
+				// Now expect SetFeaturePhase to be called (it happens before session load)
+				mockFeature := NewMockFeatureServicer(proj.features.(*MockFeatureServicer).ctrl)
+				mockFeature.EXPECT().SetFeaturePhase(gomock.Any(), "feat-load-fail", session.Design).Return(nil).Times(1)
+				proj.features = mockFeature
+				// Expect Load to fail
 				mockSession.EXPECT().Load().Return(nil, fmt.Errorf("session load failed")).Times(1)
 			},
 			wantErr: true,
@@ -459,8 +463,11 @@ func TestProject_ChangePhase(t *testing.T) {
 			name: "no active feature",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: ""}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Ensure in-memory state has no active feature
+				proj.state.CurrentFeature = ""
+				proj.state.CurrentPhase = session.None
+				// No other mocks should be called as it returns early
 			},
 			wantErr: true, // Expect ErrNoActiveFeature
 		},
@@ -468,11 +475,30 @@ func TestProject_ChangePhase(t *testing.T) {
 			name: "already in target phase",
 			args: args{ctx: context.Background(), targetPhase: session.Design},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Use testutil.MockFileInfo
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "feat1", CurrentPhase: session.Design}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Set initial in-memory state for the test
+				proj.state.CurrentFeature = "feat1"
+				proj.state.CurrentPhase = session.Design
 			},
 			wantErr:               false,
 			wantResultMsgContains: "Already in the design phase.",
+		},
+		{
+			name: "featureSvc.SetFeaturePhase fails", // Renamed test case
+			args: args{ctx: context.Background(), targetPhase: session.Deliver},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
+				featureName := "feat1"
+				initialPhase := session.Design
+				proj.state.CurrentFeature = featureName // Set initial state
+				proj.state.CurrentPhase = initialPhase
+
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Expect call to SetFeaturePhase on the feature service
+				mockFeature := NewMockFeatureServicer(proj.features.(*MockFeatureServicer).ctrl) // Need mockFeature instance
+				mockFeature.EXPECT().SetFeaturePhase(gomock.Any(), featureName, session.Deliver).Return(fmt.Errorf("set phase failed")).Times(1)
+				proj.features = mockFeature // Assign mock back if recreated
+			},
+			wantErr: true,
 		},
 		{
 			name: "session.Save fails after phase change",
@@ -480,11 +506,16 @@ func TestProject_ChangePhase(t *testing.T) {
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "feat1"
 				initialPhase := session.Design
-				phaseDir := filepath.Join(proj.state.FeaturesDir, featureName, session.Deliver.String())
+				proj.state.CurrentFeature = featureName // Set initial state
+				proj.state.CurrentPhase = initialPhase
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
-				mockFS.EXPECT().Stat(phaseDir).Return(nil, os.ErrNotExist).Times(1) // Expect Stat on phaseDir
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Expect SetFeaturePhase to succeed
+				mockFeature := NewMockFeatureServicer(proj.features.(*MockFeatureServicer).ctrl)
+				mockFeature.EXPECT().SetFeaturePhase(gomock.Any(), featureName, session.Deliver).Return(nil).Times(1)
+				proj.features = mockFeature
+				// Expect session Load and Save, but Save fails
+				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(fmt.Errorf("session save failed")).Times(1)
 			},
 			wantErr: true,
@@ -495,12 +526,17 @@ func TestProject_ChangePhase(t *testing.T) {
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "feat1"
 				initialPhase := session.Design
-				phaseDir := filepath.Join(proj.state.FeaturesDir, featureName, session.Deliver.String())
+				proj.state.CurrentFeature = featureName // Set initial state
+				proj.state.CurrentPhase = initialPhase
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes() // Use testutil.MockFileInfo
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
-				mockFS.EXPECT().Stat(phaseDir).Return(nil, os.ErrNotExist).Times(1) // Expect Stat on phaseDir
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Expect SetFeaturePhase and Session Load/Save to succeed
+				mockFeature := NewMockFeatureServicer(proj.features.(*MockFeatureServicer).ctrl)
+				mockFeature.EXPECT().SetFeaturePhase(gomock.Any(), featureName, session.Deliver).Return(nil).Times(1)
+				proj.features = mockFeature
+				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
+				// Expect Rules Refresh to fail
 				mockRules.EXPECT().RefreshRules(featureName, session.Deliver.String()).Return(fmt.Errorf("rules refresh failed")).Times(1)
 			},
 			wantErr: true,
@@ -511,18 +547,22 @@ func TestProject_ChangePhase(t *testing.T) {
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "feat1"
 				initialPhase := session.Design
-				targetPhaseStr := session.Deliver.String()
+				proj.state.CurrentFeature = featureName // Set initial state
+				proj.state.CurrentPhase = initialPhase
 				featureDir := filepath.Join(proj.state.FeaturesDir, featureName)
-				phaseToCheckDir := filepath.Join(featureDir, targetPhaseStr)
+				phaseToCheckDir := filepath.Join(featureDir, session.Deliver.String())
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes()
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
-				mockFS.EXPECT().Stat(phaseToCheckDir).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Expect SetFeaturePhase, Session Load/Save, Rules Refresh, EnsurePhaseFiles to succeed
+				mockFeature := NewMockFeatureServicer(proj.features.(*MockFeatureServicer).ctrl)
+				mockFeature.EXPECT().SetFeaturePhase(gomock.Any(), featureName, session.Deliver).Return(nil).Times(1)
+				proj.features = mockFeature
+				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
-				mockRules.EXPECT().RefreshRules(featureName, targetPhaseStr).Return(nil).Times(1)
-
-				// Setup expectation for the phase service
+				mockRules.EXPECT().RefreshRules(featureName, session.Deliver.String()).Return(nil).Times(1)
 				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
+				// Stat for impact check
+				mockFS.EXPECT().Stat(phaseToCheckDir).Return(nil, os.ErrNotExist).Times(1)
 			},
 			wantErr:               false,
 			wantResultMsgContains: "Moved to deliver phase.",
@@ -538,18 +578,22 @@ func TestProject_ChangePhase(t *testing.T) {
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
 				featureName := "featImpact"
 				initialPhase := session.Design
-				targetPhase := session.Define
+				proj.state.CurrentFeature = featureName // Set initial state
+				proj.state.CurrentPhase = initialPhase
 				featureDir := filepath.Join(proj.state.FeaturesDir, featureName)
-				phaseToCheckDir := filepath.Join(featureDir, targetPhase.String())
+				phaseToCheckDir := filepath.Join(featureDir, session.Define.String())
 
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).AnyTimes()
-				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName, CurrentPhase: initialPhase}, nil).Times(1)
-				mockFS.EXPECT().Stat(phaseToCheckDir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Expect SetFeaturePhase, Session Load/Save, Rules Refresh, EnsurePhaseFiles to succeed
+				mockFeature := NewMockFeatureServicer(proj.features.(*MockFeatureServicer).ctrl)
+				mockFeature.EXPECT().SetFeaturePhase(gomock.Any(), featureName, session.Define).Return(nil).Times(1)
+				proj.features = mockFeature
+				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: featureName}, nil).Times(1)
 				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
-				mockRules.EXPECT().RefreshRules(featureName, targetPhase.String()).Return(nil).Times(1)
-
-				// Setup expectation for the phase service
+				mockRules.EXPECT().RefreshRules(featureName, session.Define.String()).Return(nil).Times(1)
 				mockPhase.EXPECT().EnsurePhaseFiles(featureDir).Return(nil).Times(1)
+				// Stat for impact check (returns existing dir)
+				mockFS.EXPECT().Stat(phaseToCheckDir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 			},
 			wantErr:               false,
 			wantResultMsgContains: "Moved to define phase. Note: Existing files were detected",
@@ -592,6 +636,133 @@ func TestProject_ChangePhase(t *testing.T) {
 
 			if tt.verifyProjectStateAndMocks != nil {
 				tt.verifyProjectStateAndMocks(t, proj, mockSession, mockRules, mockPhase)
+			}
+		})
+	}
+}
+
+// --- New Test for EnterFeature ---
+
+func TestProject_EnterFeature(t *testing.T) {
+	type args struct {
+		ctx         context.Context
+		featureName string
+	}
+	tests := []struct {
+		name                       string
+		args                       args
+		setupMocks                 func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer)
+		wantErr                    bool
+		wantResultMsgContains      string
+		verifyProjectStateAndMocks func(t *testing.T, proj *Project)
+	}{
+		{
+			name: "project not initialized",
+			args: args{ctx: context.Background(), featureName: "test-feature"},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "featureSvc.GetFeaturePhase fails",
+			args: args{ctx: context.Background(), featureName: "test-feature"},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFeature.EXPECT().GetFeaturePhase(gomock.Any(), "test-feature").Return(session.None, fmt.Errorf("phase read error")).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "session.Load fails",
+			args: args{ctx: context.Background(), featureName: "test-feature"},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFeature.EXPECT().GetFeaturePhase(gomock.Any(), "test-feature").Return(session.Design, nil).Times(1)
+				mockSession.EXPECT().Load().Return(nil, fmt.Errorf("session load failed")).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "session.Save fails",
+			args: args{ctx: context.Background(), featureName: "test-feature"},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFeature.EXPECT().GetFeaturePhase(gomock.Any(), "test-feature").Return(session.Design, nil).Times(1)
+				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
+				mockSession.EXPECT().Save(gomock.Any()).DoAndReturn(func(state *session.SessionState) error {
+					if state.CurrentFeature != "test-feature" {
+						return fmt.Errorf("expected saved feature test-feature, got %s", state.CurrentFeature)
+					}
+					return fmt.Errorf("save session failed")
+				}).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "rules.RefreshRules fails",
+			args: args{ctx: context.Background(), featureName: "test-feature"},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFeature.EXPECT().GetFeaturePhase(gomock.Any(), "test-feature").Return(session.Design, nil).Times(1)
+				mockSession.EXPECT().Load().Return(&session.SessionState{}, nil).Times(1)
+				mockSession.EXPECT().Save(gomock.Any()).Return(nil).Times(1)
+				mockRules.EXPECT().RefreshRules("test-feature", session.Design.String()).Return(fmt.Errorf("rules refresh failed")).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "successful feature enter",
+			args: args{ctx: context.Background(), featureName: "existing-feature"},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockFeature *MockFeatureServicer, mockRules *MockRulesServicer) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFeature.EXPECT().GetFeaturePhase(gomock.Any(), "existing-feature").Return(session.Design, nil).Times(1)
+				mockSession.EXPECT().Load().Return(&session.SessionState{CurrentFeature: "other"}, nil).Times(1) // Load existing session
+				mockSession.EXPECT().Save(gomock.Any()).DoAndReturn(func(state *session.SessionState) error {
+					if state.CurrentFeature != "existing-feature" {
+						return fmt.Errorf("expected saved feature existing-feature, got %s", state.CurrentFeature)
+					}
+					return nil
+				}).Times(1)
+				mockRules.EXPECT().RefreshRules("existing-feature", session.Design.String()).Return(nil).Times(1)
+			},
+			wantErr:               false,
+			wantResultMsgContains: "Entered feature 'existing-feature' in phase 'design'.",
+			verifyProjectStateAndMocks: func(t *testing.T, proj *Project) {
+				if proj.state.CurrentFeature != "existing-feature" {
+					t.Errorf("Project state CurrentFeature = %s, want existing-feature", proj.state.CurrentFeature)
+				}
+				if proj.state.CurrentPhase != session.Design {
+					t.Errorf("Project state CurrentPhase = %s, want design", proj.state.CurrentPhase)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			proj, mockFS, mockSession, mockFeature, mockRules, _ := newTestProjectWithMocks(t, ctrl)
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(proj, mockFS, mockSession, mockFeature, mockRules)
+			}
+
+			result, err := proj.EnterFeature(tt.args.ctx, tt.args.featureName)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("EnterFeature() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !tt.wantErr && result != nil && tt.wantResultMsgContains != "" {
+				if !strings.Contains(result.Message, tt.wantResultMsgContains) { // Check against Result.Message
+					t.Errorf("EnterFeature() result message = '%s', want to contain '%s'", result.Message, tt.wantResultMsgContains)
+				}
+			}
+
+			if tt.verifyProjectStateAndMocks != nil {
+				tt.verifyProjectStateAndMocks(t, proj)
 			}
 		})
 	}

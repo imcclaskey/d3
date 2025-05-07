@@ -66,6 +66,36 @@ func (mr *MockProjectServiceMockRecorder) CreateFeature(arg0, arg1 interface{}) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFeature", reflect.TypeOf((*MockProjectService)(nil).CreateFeature), arg0, arg1)
 }
 
+// EnterFeature mocks base method.
+func (m *MockProjectService) EnterFeature(arg0 context.Context, arg1 string) (*project.Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnterFeature", arg0, arg1)
+	ret0, _ := ret[0].(*project.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EnterFeature indicates an expected call of EnterFeature.
+func (mr *MockProjectServiceMockRecorder) EnterFeature(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnterFeature", reflect.TypeOf((*MockProjectService)(nil).EnterFeature), arg0, arg1)
+}
+
+// ExitFeature mocks base method.
+func (m *MockProjectService) ExitFeature(arg0 context.Context) (*project.Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExitFeature", arg0)
+	ret0, _ := ret[0].(*project.Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ExitFeature indicates an expected call of ExitFeature.
+func (mr *MockProjectServiceMockRecorder) ExitFeature(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExitFeature", reflect.TypeOf((*MockProjectService)(nil).ExitFeature), arg0)
+}
+
 // Init mocks base method.
 func (m *MockProjectService) Init(arg0 bool) (*project.Result, error) {
 	m.ctrl.T.Helper()

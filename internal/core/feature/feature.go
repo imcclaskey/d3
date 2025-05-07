@@ -8,7 +8,16 @@ import (
 	"path/filepath"
 
 	"github.com/imcclaskey/d3/internal/core/ports"
+	"github.com/imcclaskey/d3/internal/core/session"
+	"gopkg.in/yaml.v3"
 )
+
+// featureStateData defines the structure for a feature's state.yml file
+type featureStateData struct {
+	LastActivePhase session.Phase `yaml:"last_active_phase"`
+}
+
+const stateFileName = "state.yml"
 
 // Service provides feature management operations
 type Service struct {
@@ -34,7 +43,7 @@ type FeatureInfo struct {
 	Path string
 }
 
-// CreateFeature creates a new feature directory
+// CreateFeature creates a new feature directory and its initial state.yml file
 func (s *Service) CreateFeature(ctx context.Context, featureName string) (*FeatureInfo, error) {
 	featurePath := filepath.Join(s.featuresDir, featureName)
 
@@ -51,10 +60,85 @@ func (s *Service) CreateFeature(ctx context.Context, featureName string) (*Featu
 		return nil, fmt.Errorf("failed to create feature directory: %w", err)
 	}
 
+	// Create initial state.yml for the feature
+	initialState := featureStateData{LastActivePhase: session.Define} // Default to Define phase
+	stateFilePath := filepath.Join(featurePath, stateFileName)
+	data, err := yaml.Marshal(&initialState)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal initial feature state for %s: %w", featureName, err)
+	}
+	if err := s.fs.WriteFile(stateFilePath, data, 0644); err != nil {
+		return nil, fmt.Errorf("failed to write initial state.yml for feature %s: %w", featureName, err)
+	}
+
 	return &FeatureInfo{
 		Name: featureName,
 		Path: featurePath,
 	}, nil
+}
+
+// GetFeaturePhase reads the last active phase from a feature's state.yml file.
+// If state.yml doesn't exist, it creates it with a default phase (Define) and returns that.
+func (s *Service) GetFeaturePhase(ctx context.Context, featureName string) (session.Phase, error) {
+	featurePath := filepath.Join(s.featuresDir, featureName)
+	stateFilePath := filepath.Join(featurePath, stateFileName)
+
+	data, err := s.fs.ReadFile(stateFilePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// state.yml does not exist, create it with default Define phase
+			initialState := featureStateData{LastActivePhase: session.Define}
+			writeData, marshalErr := yaml.Marshal(&initialState)
+			if marshalErr != nil {
+				return session.None, fmt.Errorf("failed to marshal default state for %s: %w", featureName, marshalErr)
+			}
+			// Ensure feature directory exists before writing state file (important for bare features)
+			if errMkdir := s.fs.MkdirAll(featurePath, 0755); errMkdir != nil {
+				return session.None, fmt.Errorf("failed to create directory for feature %s to write state.yml: %w", featureName, errMkdir)
+			}
+			if writeErr := s.fs.WriteFile(stateFilePath, writeData, 0644); writeErr != nil {
+				return session.None, fmt.Errorf("failed to write default state.yml for %s: %w", featureName, writeErr)
+			}
+			return session.Define, nil // Return default phase after creation
+		}
+		// Other error reading file
+		return session.None, fmt.Errorf("failed to read state.yml for feature %s: %w", featureName, err)
+	}
+
+	var state featureStateData
+	if err := yaml.Unmarshal(data, &state); err != nil {
+		return session.None, fmt.Errorf("failed to unmarshal state.yml for feature %s: %w", featureName, err)
+	}
+
+	if state.LastActivePhase == "" {
+		// If phase is empty string after unmarshal, treat as Define or an error depending on strictness
+		// For now, let's default to Define if it's empty for some reason.
+		return session.Define, nil
+	}
+
+	return state.LastActivePhase, nil
+}
+
+// SetFeaturePhase writes the given phase to a feature's state.yml file.
+func (s *Service) SetFeaturePhase(ctx context.Context, featureName string, phase session.Phase) error {
+	featurePath := filepath.Join(s.featuresDir, featureName)
+	stateFilePath := filepath.Join(featurePath, stateFileName)
+
+	newState := featureStateData{LastActivePhase: phase}
+	data, err := yaml.Marshal(&newState)
+	if err != nil {
+		return fmt.Errorf("failed to marshal feature state for %s: %w", featureName, err)
+	}
+
+	// Ensure feature directory exists before writing state file (important for bare features)
+	if errMkdir := s.fs.MkdirAll(featurePath, 0755); errMkdir != nil {
+		return fmt.Errorf("failed to create directory for feature %s to write state.yml: %w", featureName, errMkdir)
+	}
+
+	if err := s.fs.WriteFile(stateFilePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write state.yml for feature %s: %w", featureName, err)
+	}
+	return nil
 }
 
 // FeatureExists checks if a feature exists
