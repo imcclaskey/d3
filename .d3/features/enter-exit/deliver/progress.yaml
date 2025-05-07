@@ -4,7 +4,7 @@ files_to_be_modified:
   - internal/project/project.go
   - internal/core/session/session.go
   - internal/core/session/session.yaml  # Structure and usage pattern changes
-  - internal/core/feature/feature.go    # For state.yml management
+  - internal/core/feature/feature.go    # For state.yaml management
   - internal/mcp/tools/feature.go       # For d3_feature_create, d3_feature_enter, d3_feature_exit
   - internal/cli/command/root.go        # Potentially to add 'd3 exit'
   - internal/cli/command/create.go      # Or equivalent for 'd3 feature create'
@@ -25,13 +25,13 @@ implementation_tasks:
         description: "(Completed) Refactor session.SessionState (session.yml) to remove CurrentPhase, adjust session.Storage Load/Save."
         status: "completed"
       - id: task_1_3
-        description: "Enhance FeatureServicer interface and implementation for state.yml management (GetFeaturePhase, SetFeaturePhase, and state.yml creation in feature.Service.CreateFeature)."
+        description: "Enhance FeatureServicer interface and implementation for state.yaml management (GetFeaturePhase, SetFeaturePhase, and state.yaml creation in feature.Service.CreateFeature)."
         status: "completed"
       - id: task_1_4
-        description: "Refactor Project.ChangePhase to use FeatureServicer.SetFeaturePhase for state.yml updates."
+        description: "Refactor Project.ChangePhase to use FeatureServicer.SetFeaturePhase for state.yaml updates."
         status: "completed"
       - id: task_1_5
-        description: "Refactor Project.CreateFeature to rely on FeatureServicer for state.yml creation and correctly set in-memory/session.yml state."
+        description: "Refactor Project.CreateFeature to rely on FeatureServicer for state.yaml creation and correctly set in-memory/session.yml state."
         status: "completed"
       - id: task_1_6
         description: "Update internal references and documentation for naming and core state/feature service refactorings. (Manual review and update needed by user)"

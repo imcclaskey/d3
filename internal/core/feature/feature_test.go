@@ -84,7 +84,7 @@ func TestService_CreateFeature(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name: "WriteFile for state.yml fails",
+			name: "WriteFile for state.yaml fails",
 			args: args{ctx: context.Background(), featureName: "state-fail-feature"},
 			setupMocks: func(s *Service, mockFS *portsmocks.MockFileSystem, featureName string) {
 				featurePath := filepath.Join(s.featuresDir, featureName)

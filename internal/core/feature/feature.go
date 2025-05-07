@@ -12,12 +12,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// featureStateData defines the structure for a feature's state.yml file
+// featureStateData defines the structure for a feature's state.yaml file
 type featureStateData struct {
 	LastActivePhase session.Phase `yaml:"last_active_phase"`
 }
 
-const stateFileName = "state.yml"
+const stateFileName = "state.yaml"
 
 // Service provides feature management operations
 type Service struct {
@@ -43,7 +43,7 @@ type FeatureInfo struct {
 	Path string
 }
 
-// CreateFeature creates a new feature directory and its initial state.yml file
+// CreateFeature creates a new feature directory and its initial state.yaml file
 func (s *Service) CreateFeature(ctx context.Context, featureName string) (*FeatureInfo, error) {
 	featurePath := filepath.Join(s.featuresDir, featureName)
 
@@ -60,7 +60,7 @@ func (s *Service) CreateFeature(ctx context.Context, featureName string) (*Featu
 		return nil, fmt.Errorf("failed to create feature directory: %w", err)
 	}
 
-	// Create initial state.yml for the feature
+	// Create initial state.yaml for the feature
 	initialState := featureStateData{LastActivePhase: session.Define} // Default to Define phase
 	stateFilePath := filepath.Join(featurePath, stateFileName)
 	data, err := yaml.Marshal(&initialState)
@@ -68,7 +68,7 @@ func (s *Service) CreateFeature(ctx context.Context, featureName string) (*Featu
 		return nil, fmt.Errorf("failed to marshal initial feature state for %s: %w", featureName, err)
 	}
 	if err := s.fs.WriteFile(stateFilePath, data, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write initial state.yml for feature %s: %w", featureName, err)
+		return nil, fmt.Errorf("failed to write initial state.yaml for feature %s: %w", featureName, err)
 	}
 
 	return &FeatureInfo{
@@ -77,8 +77,8 @@ func (s *Service) CreateFeature(ctx context.Context, featureName string) (*Featu
 	}, nil
 }
 
-// GetFeaturePhase reads the last active phase from a feature's state.yml file.
-// If state.yml doesn't exist, it creates it with a default phase (Define) and returns that.
+// GetFeaturePhase reads the last active phase from a feature's state.yaml file.
+// If state.yaml doesn't exist, it creates it with a default phase (Define) and returns that.
 func (s *Service) GetFeaturePhase(ctx context.Context, featureName string) (session.Phase, error) {
 	featurePath := filepath.Join(s.featuresDir, featureName)
 	stateFilePath := filepath.Join(featurePath, stateFileName)
@@ -86,7 +86,7 @@ func (s *Service) GetFeaturePhase(ctx context.Context, featureName string) (sess
 	data, err := s.fs.ReadFile(stateFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// state.yml does not exist, create it with default Define phase
+			// state.yaml does not exist, create it with default Define phase
 			initialState := featureStateData{LastActivePhase: session.Define}
 			writeData, marshalErr := yaml.Marshal(&initialState)
 			if marshalErr != nil {
@@ -94,20 +94,20 @@ func (s *Service) GetFeaturePhase(ctx context.Context, featureName string) (sess
 			}
 			// Ensure feature directory exists before writing state file (important for bare features)
 			if errMkdir := s.fs.MkdirAll(featurePath, 0755); errMkdir != nil {
-				return session.None, fmt.Errorf("failed to create directory for feature %s to write state.yml: %w", featureName, errMkdir)
+				return session.None, fmt.Errorf("failed to create directory for feature %s to write state.yaml: %w", featureName, errMkdir)
 			}
 			if writeErr := s.fs.WriteFile(stateFilePath, writeData, 0644); writeErr != nil {
-				return session.None, fmt.Errorf("failed to write default state.yml for %s: %w", featureName, writeErr)
+				return session.None, fmt.Errorf("failed to write default state.yaml for %s: %w", featureName, writeErr)
 			}
 			return session.Define, nil // Return default phase after creation
 		}
 		// Other error reading file
-		return session.None, fmt.Errorf("failed to read state.yml for feature %s: %w", featureName, err)
+		return session.None, fmt.Errorf("failed to read state.yaml for feature %s: %w", featureName, err)
 	}
 
 	var state featureStateData
 	if err := yaml.Unmarshal(data, &state); err != nil {
-		return session.None, fmt.Errorf("failed to unmarshal state.yml for feature %s: %w", featureName, err)
+		return session.None, fmt.Errorf("failed to unmarshal state.yaml for feature %s: %w", featureName, err)
 	}
 
 	if state.LastActivePhase == "" {
@@ -119,7 +119,7 @@ func (s *Service) GetFeaturePhase(ctx context.Context, featureName string) (sess
 	return state.LastActivePhase, nil
 }
 
-// SetFeaturePhase writes the given phase to a feature's state.yml file.
+// SetFeaturePhase writes the given phase to a feature's state.yaml file.
 func (s *Service) SetFeaturePhase(ctx context.Context, featureName string, phase session.Phase) error {
 	featurePath := filepath.Join(s.featuresDir, featureName)
 	stateFilePath := filepath.Join(featurePath, stateFileName)
@@ -132,11 +132,11 @@ func (s *Service) SetFeaturePhase(ctx context.Context, featureName string, phase
 
 	// Ensure feature directory exists before writing state file (important for bare features)
 	if errMkdir := s.fs.MkdirAll(featurePath, 0755); errMkdir != nil {
-		return fmt.Errorf("failed to create directory for feature %s to write state.yml: %w", featureName, errMkdir)
+		return fmt.Errorf("failed to create directory for feature %s to write state.yaml: %w", featureName, errMkdir)
 	}
 
 	if err := s.fs.WriteFile(stateFilePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write state.yml for feature %s: %w", featureName, err)
+		return fmt.Errorf("failed to write state.yaml for feature %s: %w", featureName, err)
 	}
 	return nil
 }

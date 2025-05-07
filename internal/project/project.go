@@ -227,7 +227,7 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 
 	// Create the feature using the feature service.
 	// The feature.Service.CreateFeature is now responsible for creating the directory
-	// AND the initial state.yml file with a default phase (e.g., Define).
+	// AND the initial state.yaml file with a default phase (e.g., Define).
 	featureInfo, err := p.features.CreateFeature(ctx, featureName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create feature using service: %w", err)
@@ -261,7 +261,7 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 
 	// Update in-memory project state
 	p.state.CurrentFeature = featureName
-	p.state.CurrentPhase = session.Define // Set in-memory phase to Define, consistent with feature.Service creating state.yml with Define
+	p.state.CurrentPhase = session.Define // Set in-memory phase to Define, consistent with feature.Service creating state.yaml with Define
 
 	// Update the rules with the new context
 	// The phase for rules refresh should come from the newly set in-memory state.
@@ -277,7 +277,7 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 	return NewResultWithRulesChanged(fmt.Sprintf("Feature '%s' created and set to define phase.", featureName)), nil
 }
 
-// FeatureLocalState defines the structure for a feature's state.yml file
+// FeatureLocalState defines the structure for a feature's state.yaml file
 // type FeatureLocalState struct { // This struct is now managed within feature.Service
 // 	LastActivePhase session.Phase `yaml:"last_active_phase"`
 // }
@@ -303,7 +303,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 		return NewResult(fmt.Sprintf("Already in the %s phase.", targetPhase)), nil
 	}
 
-	// Persist the new phase to the feature's state.yml file via FeatureServicer
+	// Persist the new phase to the feature's state.yaml file via FeatureServicer
 	if err := p.features.SetFeaturePhase(ctx, currentFeatureName, targetPhase); err != nil {
 		return nil, fmt.Errorf("failed to set feature phase for %s: %w", currentFeatureName, err)
 	}
@@ -354,7 +354,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 		return nil, fmt.Errorf("failed to check phase directory %s: %w", phaseDir, errStat)
 	}
 
-	message := fmt.Sprintf("Moved to %s phase.", targetPhase) // Simplified message, state.yml path is an impl detail
+	message := fmt.Sprintf("Moved to %s phase.", targetPhase) // Simplified message, state.yaml path is an impl detail
 	if hasImpact {
 		message += " Note: Existing files were detected for the target phase. Review required."
 	}
@@ -368,7 +368,7 @@ func (p *Project) EnterFeature(ctx context.Context, featureName string) (*Result
 		return nil, err
 	}
 
-	// Get the feature's last active phase from its state.yml (or default if new)
+	// Get the feature's last active phase from its state.yaml (or default if new)
 	phase, err := p.features.GetFeaturePhase(ctx, featureName)
 	if err != nil {
 		// Provide a more specific error if GetFeaturePhase indicates feature doesn't exist
