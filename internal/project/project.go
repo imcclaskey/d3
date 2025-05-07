@@ -246,7 +246,6 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 
 	// Update the current feature in session.yml
 	sessionState.CurrentFeature = featureName
-	// sessionState.CurrentPhase = session.Define // This line is removed as CurrentPhase is not in SessionState
 
 	// Save the session state (session.yml)
 	if err := p.session.Save(sessionState); err != nil {
@@ -254,7 +253,6 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 	}
 
 	// Ensure standard phase files exist for the feature (existing logic)
-	// featureDir is now featureInfo.Path from the service call
 	if err := p.phases.EnsurePhaseFiles(featureInfo.Path); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: failed to ensure phase files for %s: %v\n", featureName, err)
 	}
@@ -276,11 +274,6 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 
 	return NewResultWithRulesChanged(fmt.Sprintf("Feature '%s' created and set to define phase.", featureName)), nil
 }
-
-// FeatureLocalState defines the structure for a feature's state.yaml file
-// type FeatureLocalState struct { // This struct is now managed within feature.Service
-// 	LastActivePhase session.Phase `yaml:"last_active_phase"`
-// }
 
 // ChangePhase changes the current phase of the active feature
 func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*Result, error) {
@@ -312,7 +305,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 	p.state.CurrentPhase = targetPhase
 
 	// Load current global session state (session.yml) primarily to update LastModified
-	sessionState, err := p.session.Load() // This now loads a struct without CurrentPhase
+	sessionState, err := p.session.Load()
 	if err != nil {
 		// If session.yml doesn't exist, initialize a new one.
 		if os.IsNotExist(errors.Unwrap(err)) {
@@ -354,7 +347,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 		return nil, fmt.Errorf("failed to check phase directory %s: %w", phaseDir, errStat)
 	}
 
-	message := fmt.Sprintf("Moved to %s phase.", targetPhase) // Simplified message, state.yaml path is an impl detail
+	message := fmt.Sprintf("Moved to %s phase.", targetPhase)
 	if hasImpact {
 		message += " Note: Existing files were detected for the target phase. Review required."
 	}
@@ -447,7 +440,6 @@ func (p *Project) ExitFeature(ctx context.Context) (*Result, error) {
 
 	// Update session.yaml: clear the CurrentFeature.
 	sessionState.CurrentFeature = ""
-	// sessionState.CurrentPhase = session.None.String() // If CurrentPhase were part of global session.yaml
 
 	if err := p.session.Save(sessionState); err != nil {
 		// If we can't save the cleared session, this is a problem for subsequent commands.

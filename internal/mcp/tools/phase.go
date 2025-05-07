@@ -20,7 +20,6 @@ var MoveTool = mcp.NewTool("d3_phase_move",
 )
 
 // HandleMove returns a handler for the d3_phase_move tool
-// It now accepts project.ProjectService interface for testability.
 func HandleMove(proj project.ProjectService) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract phase parameter
@@ -30,7 +29,6 @@ func HandleMove(proj project.ProjectService) server.ToolHandlerFunc {
 		}
 
 		if proj == nil {
-			// This check is still valid, though type is now interface
 			return mcp.NewToolResultError("Internal error: Project context is nil"), nil
 		}
 

@@ -21,7 +21,6 @@ func NewServeCommand() *cobra.Command {
 		Long:  "Start a Model Context Protocol server that exposes d3 functionality to LLM clients",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Get the working directory flag value here
 			workdirFlag, _ := cmd.Flags().GetString("workdir") // Error can be ignored, defaults to ""
 			return runServe(workdirFlag)
 		},
@@ -33,16 +32,14 @@ func NewServeCommand() *cobra.Command {
 	return cmd
 }
 
-// runServe handles the serve command execution, now accepting workdir flag
+// runServe handles the serve command execution
 func runServe(workdirFlag string) error {
-	// Create command instance
 	command := &ServeCommand{}
 
 	var workspaceRoot string
 	var err error
 
 	if workdirFlag != "" {
-		// Use the flag value if provided
 		workspaceRoot = workdirFlag
 		// Check if the directory exists and is accessible
 		_, statErr := os.Stat(workspaceRoot)
@@ -60,14 +57,12 @@ func runServe(workdirFlag string) error {
 		}
 	}
 
-	// Execute the command
 	result, err := command.Run(context.Background(), workspaceRoot)
 
 	if err != nil {
 		return err
 	}
 
-	// Print the result message (although for stdio server, this may never be seen)
 	fmt.Println(result.Message)
 
 	return nil
@@ -75,10 +70,8 @@ func runServe(workdirFlag string) error {
 
 // Run implements a modified Command interface for serve
 func (s *ServeCommand) Run(ctx context.Context, workspaceRoot string) (Result, error) {
-	// Create MCP server
 	server := mcp.NewServer(workspaceRoot)
 
-	// Start the stdio server
 	err := mcp.ServeStdio(server)
 
 	if err != nil {

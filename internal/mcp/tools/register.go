@@ -7,12 +7,10 @@ import (
 )
 
 // RegisterTools registers all available d3 tools with the MCP server
-// It now accepts project.ProjectService.
 func RegisterTools(mcpServer *server.MCPServer, proj project.ProjectService) {
 	mcpServer.AddTool(MoveTool, HandleMove(proj))
 	mcpServer.AddTool(FeatureCreateTool, HandleFeatureCreate(proj))
 	mcpServer.AddTool(FeatureEnterTool, HandleFeatureEnter(proj))
 	mcpServer.AddTool(FeatureExitTool, HandleFeatureExit(proj))
 	mcpServer.AddTool(InitTool, HandleInit(proj))
-	// Add other tools here
 }

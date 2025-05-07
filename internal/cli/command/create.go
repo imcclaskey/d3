@@ -16,7 +16,6 @@ import (
 )
 
 // FeatureCreateCommand holds dependencies for the feature create command.
-// Note: Renamed from CreateCommand to avoid conflict if a top-level create remains.
 type FeatureCreateCommand struct {
 	featureName string
 	projectSvc  project.ProjectService
@@ -37,7 +36,7 @@ func NewFeatureCreateCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("could not determine workspace root: %w", err)
 			}
-			cfg := NewConfig(projectRoot) // Assuming NewConfig is accessible or defined in this package
+			cfg := NewConfig(projectRoot)
 
 			fs := ports.RealFileSystem{}
 			sessionSvc := session.NewStorage(cfg.D3Dir, fs)
@@ -59,8 +58,6 @@ func (c *FeatureCreateCommand) run(ctx context.Context) error {
 	if c.projectSvc == nil {
 		return fmt.Errorf("project service not initialized in FeatureCreateCommand")
 	}
-	// The projectSvc.CreateFeature is the Go function, which is internally consistent
-	// with the d3_feature_create MCP tool name after Task 1.1 MCP rename.
 	result, err := c.projectSvc.CreateFeature(ctx, c.featureName)
 	if err != nil {
 		return err

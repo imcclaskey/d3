@@ -16,7 +16,6 @@ var InitTool = mcp.NewTool("d3_init",
 )
 
 // HandleInit returns a handler for the d3_init tool
-// It now accepts project.ProjectService interface for testability.
 func HandleInit(proj project.ProjectService) server.ToolHandlerFunc {
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract clean flag

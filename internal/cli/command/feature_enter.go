@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	// Import necessary core packages for service instantiation
 	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
@@ -19,7 +18,7 @@ import (
 // FeatureEnterCommand holds dependencies for the feature enter command.
 type FeatureEnterCommand struct {
 	featureName string
-	projectSvc  project.ProjectService // Dependency for the project service
+	projectSvc  project.ProjectService
 }
 
 // NewFeatureEnterCommand creates a new cobra command for entering features.
@@ -32,13 +31,10 @@ func NewFeatureEnterCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmdRunner.featureName = args[0]
 
-			// Instantiate ProjectService (similar to create.go)
-			// Consider refactoring this setup logic into a shared helper if used often.
 			projectRoot, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("could not determine workspace root: %w", err)
 			}
-			// Assuming NewConfig helper exists or is accessible
 			cfg := NewConfig(projectRoot)
 
 			fs := ports.RealFileSystem{}
@@ -62,13 +58,11 @@ func (c *FeatureEnterCommand) run(ctx context.Context) error {
 		return fmt.Errorf("project service not initialized in FeatureEnterCommand")
 	}
 
-	// EnterFeature now returns *Result, error
 	result, err := c.projectSvc.EnterFeature(ctx, c.featureName)
 	if err != nil {
-		return err // Return the error from the service call
+		return err
 	}
 
-	// Print the formatted result from the project service
 	fmt.Println(result.FormatCLI())
 
 	return nil

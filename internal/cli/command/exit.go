@@ -7,7 +7,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	// Import necessary core packages for service instantiation
 	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
@@ -18,7 +17,7 @@ import (
 
 // ExitCommand holds dependencies for the exit command.
 type ExitCommand struct {
-	projectSvc project.ProjectService // Dependency for the project service
+	projectSvc project.ProjectService
 }
 
 // NewExitCommand creates a new cobra command for exiting the current feature context.
@@ -29,7 +28,6 @@ func NewExitCommand() *cobra.Command {
 		Short: "Exit the current feature context, clearing active feature state.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Instantiate ProjectService
 			projectRoot, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("could not determine workspace root: %w", err)
@@ -59,10 +57,9 @@ func (c *ExitCommand) run(ctx context.Context) error {
 
 	result, err := c.projectSvc.ExitFeature(ctx)
 	if err != nil {
-		return err // Return the error from the service call
+		return err
 	}
 
-	// Print the result message from the project service
 	fmt.Println(result.FormatCLI())
 
 	return nil

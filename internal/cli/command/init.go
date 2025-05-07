@@ -37,7 +37,6 @@ func NewInitCommand() *cobra.Command {
 			}
 			cfg := NewConfig(projectRoot)
 
-			// Create real services and real project instance here for production path
 			fs := ports.RealFileSystem{}
 			sessionSvc := session.NewStorage(cfg.D3Dir, fs)
 			featureSvc := feature.NewService(cfg.WorkspaceRoot, cfg.FeaturesDir, cfg.D3Dir, fs)
@@ -45,7 +44,6 @@ func NewInitCommand() *cobra.Command {
 			rulesSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
 			phaseSvc := phase.NewService(fs)
 
-			// Assign the real project instance to the command runner for production
 			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc)
 
 			return cmdRunner.run(cmdRunner.clean)
@@ -55,7 +53,7 @@ func NewInitCommand() *cobra.Command {
 	return cobraCmd
 }
 
-// run is the core logic, now using the projectSvc field.
+// run is the core logic.
 func (c *InitCommand) run(clean bool) error {
 	// If projectSvc is nil (e.g. not set by test or RunE), it would panic.
 	// This implies RunE should always set it, or tests should always set it.

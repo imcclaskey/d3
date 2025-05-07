@@ -11,8 +11,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/cobra"
 
-	// Import project service and mocks
-
 	"github.com/imcclaskey/d3/internal/project"
 	projectmocks "github.com/imcclaskey/d3/internal/project/mocks"
 )
@@ -29,9 +27,9 @@ func TestNewFeatureEnterCommand(t *testing.T) {
 
 	// Test argument validation requires the correct command hierarchy
 	rootCmd := &cobra.Command{Use: "d3"}
-	featureCmd := NewFeatureCommand() // Assuming NewFeatureCommand() is accessible
-	featureCmd.AddCommand(cmd)        // Add enter to feature
-	rootCmd.AddCommand(featureCmd)    // Add feature to root
+	featureCmd := NewFeatureCommand()
+	featureCmd.AddCommand(cmd)     // Add enter to feature
+	rootCmd.AddCommand(featureCmd) // Add feature to root
 
 	_, err := executeCommand(rootCmd, "feature", "enter") // No args
 	if err == nil || !strings.Contains(err.Error(), "accepts 1 arg(s), received 0") {
@@ -56,12 +54,10 @@ func TestFeatureEnterCommand_RunLogic(t *testing.T) {
 		{
 			name: "successful enter",
 			setupMockProjectSvc: func(mockSvc *projectmocks.MockProjectService) {
-				// Expect EnterFeature to be called and return a *Result
 				mockSvc.EXPECT().EnterFeature(gomock.Any(), featureName).
 					Return(project.NewResultWithRulesChanged("Entered feature 'my-test-feature' in phase 'design'."), nil).Times(1)
 			},
-			wantErr: false,
-			// Expect the CLI formatted output from the Result
+			wantErr:            false,
 			wantOutputContains: "Entered feature 'my-test-feature' in phase 'design'. Cursor rules have been updated.",
 		},
 		{

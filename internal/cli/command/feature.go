@@ -11,6 +11,5 @@ func NewFeatureCommand() *cobra.Command {
 		Short: "Manage features (create, enter, exit, etc.)",
 		Long:  `Provides subcommands to manage the lifecycle and context of features within the d3 project.`,
 	}
-	// Subcommands like create, enter, exit will be added here.
 	return cmd
 }

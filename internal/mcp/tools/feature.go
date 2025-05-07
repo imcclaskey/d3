@@ -78,7 +78,6 @@ func HandleFeatureEnter(proj project.ProjectService) server.ToolHandlerFunc {
 		}
 
 		// Call the project method to enter the feature
-		// EnterFeature now returns *Result, error
 		result, err := proj.EnterFeature(ctx, featureName)
 		if err != nil {
 			// Handle specific known errors if necessary, otherwise return generic error
@@ -90,7 +89,6 @@ func HandleFeatureEnter(proj project.ProjectService) server.ToolHandlerFunc {
 		}
 
 		// Format success result using Result.FormatMCP()
-		// result is now *project.Result, which has FormatMCP method
 		return mcp.NewToolResultText(result.FormatMCP()), nil
 	}
 }
@@ -112,7 +110,6 @@ func HandleFeatureExit(proj project.ProjectService) server.ToolHandlerFunc {
 			return mcp.NewToolResultError(fmt.Sprintf("System error exiting feature: %v", err)), nil
 		}
 
-		// ExitFeature returns a Result struct which has a FormatMCP method
 		return mcp.NewToolResultText(result.FormatMCP()), nil
 	}
 }

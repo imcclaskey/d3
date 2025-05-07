@@ -11,12 +11,9 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/spf13/cobra"
 
-	// Import project service and mocks
 	"github.com/imcclaskey/d3/internal/project"
 	projectmocks "github.com/imcclaskey/d3/internal/project/mocks"
 )
-
-// Assuming executeCommand helper exists elsewhere in package command
 
 func TestNewExitCommand(t *testing.T) {
 	cmd := NewExitCommand()
@@ -27,8 +24,6 @@ func TestNewExitCommand(t *testing.T) {
 	if cmd.Short == "" {
 		t.Error("Expected Short description to be non-empty")
 	}
-	// Check Args - cobra.NoArgs is not directly verifiable by a field,
-	// but we can test its behavior.
 
 	// Test argument validation (requires root command context)
 	rootCmd := &cobra.Command{Use: "d3"}

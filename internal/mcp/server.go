@@ -40,7 +40,6 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 		version.Version,
 		server.WithInstructions("d3 is a structured workflow engine for AI-driven development within Cursor"),
 		server.WithToolCapabilities(true),
-		// TODO: Integrate project with MCP service/tools here (e.g. pass to tool handlers)
 	)
 
 	// Register tools, proj (a *project.Project) satisfies project.ProjectService.
