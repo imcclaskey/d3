@@ -224,7 +224,7 @@ func TestProject_Init(t *testing.T) {
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1) // Called by ensureGitignoreEntries for .d3/.gitignore
 				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(cursorRulesD3Dir, os.FileMode(0755)).Return(nil).Times(1) // Called by ensureGitignoreEntries for .cursor/rules/d3/.gitignore
-				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.rules\n"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1)
 
 				mockRules.EXPECT().RefreshRules("", "").Return(nil).Times(1)
 			},
@@ -265,7 +265,7 @@ func TestProject_Init(t *testing.T) {
 					mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1),
 					mockFS.EXPECT().MkdirAll(cursorRulesD3Dir, os.FileMode(0755)).Return(nil).Times(1),
-					mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.rules\n"), os.FileMode(0644)).Return(nil).Times(1),
+					mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1),
 					mockRules.EXPECT().RefreshRules("", "").Return(nil).Times(1),
 				)
 			},
@@ -317,7 +317,7 @@ func TestProject_Init(t *testing.T) {
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(cursorRulesD3Dir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.rules\n"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules("", "").Return(fmt.Errorf("rules refresh failed")).Times(1)
 			},
 			wantErr: true,

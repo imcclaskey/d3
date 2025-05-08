@@ -250,7 +250,7 @@ func (p *Project) ensureGitignoreEntries() error {
 		},
 		{
 			path:    filepath.Join(".cursor", "rules", "d3", ".gitignore"),
-			content: "*.gen.rules\n", // Content for .cursor/rules/d3/.gitignore
+			content: "*.gen.mdc\n", // Content for .cursor/rules/d3/.gitignore
 		},
 	}
 
