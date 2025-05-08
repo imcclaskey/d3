@@ -36,33 +36,47 @@ func (m *MockStorageService) EXPECT() *MockStorageServiceMockRecorder {
 	return m.recorder
 }
 
-// Load mocks base method.
-func (m *MockStorageService) Load() (*session.SessionState, error) {
+// ClearActiveFeature mocks base method.
+func (m *MockStorageService) ClearActiveFeature() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Load")
-	ret0, _ := ret[0].(*session.SessionState)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Load indicates an expected call of Load.
-func (mr *MockStorageServiceMockRecorder) Load() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Load", reflect.TypeOf((*MockStorageService)(nil).Load))
-}
-
-// Save mocks base method.
-func (m *MockStorageService) Save(arg0 *session.SessionState) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", arg0)
+	ret := m.ctrl.Call(m, "ClearActiveFeature")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Save indicates an expected call of Save.
-func (mr *MockStorageServiceMockRecorder) Save(arg0 interface{}) *gomock.Call {
+// ClearActiveFeature indicates an expected call of ClearActiveFeature.
+func (mr *MockStorageServiceMockRecorder) ClearActiveFeature() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockStorageService)(nil).Save), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearActiveFeature", reflect.TypeOf((*MockStorageService)(nil).ClearActiveFeature))
+}
+
+// LoadActiveFeature mocks base method.
+func (m *MockStorageService) LoadActiveFeature() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadActiveFeature")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LoadActiveFeature indicates an expected call of LoadActiveFeature.
+func (mr *MockStorageServiceMockRecorder) LoadActiveFeature() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadActiveFeature", reflect.TypeOf((*MockStorageService)(nil).LoadActiveFeature))
+}
+
+// SaveActiveFeature mocks base method.
+func (m *MockStorageService) SaveActiveFeature(arg0 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveActiveFeature", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveActiveFeature indicates an expected call of SaveActiveFeature.
+func (mr *MockStorageServiceMockRecorder) SaveActiveFeature(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveActiveFeature", reflect.TypeOf((*MockStorageService)(nil).SaveActiveFeature), arg0)
 }
 
 // MockFeatureServicer is a mock of FeatureServicer interface.
@@ -153,6 +167,20 @@ func NewMockRulesServicer(ctrl *gomock.Controller) *MockRulesServicer {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRulesServicer) EXPECT() *MockRulesServicerMockRecorder {
 	return m.recorder
+}
+
+// ClearGeneratedRules mocks base method.
+func (m *MockRulesServicer) ClearGeneratedRules() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ClearGeneratedRules")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ClearGeneratedRules indicates an expected call of ClearGeneratedRules.
+func (mr *MockRulesServicerMockRecorder) ClearGeneratedRules() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearGeneratedRules", reflect.TypeOf((*MockRulesServicer)(nil).ClearGeneratedRules))
 }
 
 // RefreshRules mocks base method.

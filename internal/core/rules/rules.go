@@ -2,6 +2,7 @@ package rules
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -135,4 +136,32 @@ func (s *Service) RefreshRules(feature string, phase string) error {
 	}
 
 	return nil
+}
+
+// ClearGeneratedRules removes all files matching *.gen.mdc in the rule directory.
+func (s *Service) ClearGeneratedRules() error {
+	d3RuleDir := filepath.Join(s.cursorRulesDir, "d3")
+	pattern := filepath.Join(d3RuleDir, "*.gen.mdc")
+
+	// Use the injected filesystem to find matching files
+	matches, err := s.fs.Glob(pattern)
+	if err != nil {
+		// Glob errors might include permission issues, but often indicate pattern syntax error (unlikely here)
+		return fmt.Errorf("error finding generated rule files with pattern %s: %w", pattern, err)
+	}
+
+	var firstErr error
+	for _, match := range matches {
+		err := s.fs.Remove(match)
+		if err != nil {
+			// Log the error but continue trying to remove others
+			fmt.Fprintf(os.Stderr, "warning: failed to remove rule file %s: %v\n", match, err)
+			// Store the first error encountered
+			if firstErr == nil {
+				firstErr = fmt.Errorf("failed to remove rule file %s: %w", match, err)
+			}
+		}
+	}
+
+	return firstErr // Return the first error encountered, or nil if all succeeded
 }

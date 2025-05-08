@@ -1,5 +1,5 @@
 ---
-description: Phase-specific rules for d3 framework (Implementation Phase)
+description: Phase-specific rules for d3 framework (Delivery Phase)
 globs: 
 alwaysApply: true
 ---
@@ -35,15 +35,15 @@ The primary artifact of this phase is the actual implementation code, guided and
 **A. Starting Point and Input Sources:**
 
 *   **[problem.md](mdc:.d3/features/{{feature}}/define/problem.md)**: Contains the problem definition, requirements, and scope boundaries.
-*   **[plan.md](mdc:.d3/features/{{feature}}/describe/plan.md)**: Contains the technical approach and implementation plan. This is your primary guide.
-*   **[progress.yaml](mdc:.d3/features/{{feature}}/deliver/progress.yaml)**: Tracks implementation progress and tasks.
+*   **[plan.md](mdc:.d3/features/{{feature}}/design/plan.md)**: Contains the technical approach and delivery plan. This is your primary guide.
+*   **[progress.yaml](mdc:.d3/features/{{feature}}/deliver/progress.yaml)**: Tracks delivery progress and tasks.
 *   **Current codebase**: Essential for understanding existing patterns and making consistent modifications.
 
-**B. Implementation Process:**
+**B. Delivery Process:**
 
-1.  **Review Technical Plan**: Start by carefully studying [plan.md](mdc:.d3/features/{{feature}}/design/plan.md) to understand the technical approach and implementation steps.
-2.  **Load Task State**: Check [progress.yaml](mdc:.d3/features/{{feature}}/deliver/progress.yaml) to see the current state of implementation and remaining tasks.
-3.  **Work on Prioritized Tasks**: Implement one task at a time, following the sequence and dependencies defined in the task list.
+1.  **Review Technical Plan**: Start by carefully studying [plan.md](mdc:.d3/features/{{feature}}/design/plan.md) to understand the technical approach and delivery steps.
+2.  **Load Task State**: Check [progress.yaml](mdc:.d3/features/{{feature}}/deliver/progress.yaml) to see the current state of delivery and remaining tasks.
+3.  **Work on Prioritized Tasks**: Complete one task at a time, following the sequence and dependencies defined in the task list.
 4.  **Adhere to Existing Patterns**: Ensure code modifications are consistent with the project's patterns, naming conventions, and architectural style.
 5.  **Document Changes**: As you implement, keep [progress.yaml](mdc:.d3/features/{{feature}}/deliver/progress.yaml) updated with completed tasks and modified files.
 6.  **Test Verification**: Where practical, include or suggest appropriate tests for new functionality.
