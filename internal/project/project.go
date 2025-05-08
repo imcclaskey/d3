@@ -68,8 +68,9 @@ func (r *Result) FormatMCP() string {
 
 // StorageService defines the interface for session storage operations.
 type StorageService interface {
-	Load() (*session.SessionState, error)
-	Save(*session.SessionState) error
+	LoadActiveFeature() (string, error)
+	SaveActiveFeature(featureName string) error
+	ClearActiveFeature() error
 }
 
 // FeatureServicer defines the interface for feature management operations.

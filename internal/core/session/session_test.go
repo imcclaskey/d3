@@ -7,10 +7,9 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"gopkg.in/yaml.v3"
 
 	portsmocks "github.com/imcclaskey/d3/internal/core/ports/mocks"
-	"github.com/imcclaskey/d3/internal/testutil" // Import shared test utilities
+	// Import shared test utilities
 )
 
 func TestPhase_Valid(t *testing.T) {
@@ -102,56 +101,51 @@ func TestParsePhase(t *testing.T) {
 	}
 }
 
-// --- Tests for Storage ---
+// --- Tests for Storage (Refactored) ---
 
-func TestStorage_Load(t *testing.T) {
-	d3Dir := t.TempDir() // Use a temporary directory for test isolation
-	sessionFilePath := filepath.Join(d3Dir, "session.yaml")
+func TestStorage_LoadActiveFeature(t *testing.T) {
+	d3Dir := t.TempDir()
+	sessionFilePath := filepath.Join(d3Dir, ".session") // Path updated
 
 	tests := []struct {
-		name       string
-		setupMocks func(mockFS *portsmocks.MockFileSystem)
-		wantState  *SessionState // Note: This SessionState struct no longer has CurrentPhase
-		wantErr    bool
+		name            string
+		setupMocks      func(mockFS *portsmocks.MockFileSystem)
+		wantFeatureName string
+		wantErr         bool
 	}{
 		{
 			name: "session file does not exist",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
-				mockFS.EXPECT().Stat(sessionFilePath).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().ReadFile(sessionFilePath).Return(nil, os.ErrNotExist).Times(1)
 			},
-			wantState: nil,
-			wantErr:   true, // Expect specific error about file not existing
+			wantFeatureName: "", // Expect empty string if not found
+			wantErr:         false,
 		},
 		{
 			name: "error reading session file",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
-				mockFS.EXPECT().Stat(sessionFilePath).Return(testutil.MockFileInfo{}, nil).Times(1)
 				mockFS.EXPECT().ReadFile(sessionFilePath).Return(nil, fmt.Errorf("read error")).Times(1)
 			},
-			wantState: nil,
-			wantErr:   true,
+			wantFeatureName: "",
+			wantErr:         true,
 		},
 		{
-			name: "error parsing session file (invalid YAML)",
+			name: "successful load with content",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
-				invalidYAML := []byte("current_feature: test\ncurrent_phase: define: oops") // Phase field still exists in data, but ignored by struct
-				mockFS.EXPECT().Stat(sessionFilePath).Return(testutil.MockFileInfo{}, nil).Times(1)
-				mockFS.EXPECT().ReadFile(sessionFilePath).Return(invalidYAML, nil).Times(1)
+				fileContent := []byte("  my-active-feature  ") // Content with whitespace
+				mockFS.EXPECT().ReadFile(sessionFilePath).Return(fileContent, nil).Times(1)
 			},
-			wantState: nil,
-			wantErr:   true,
+			wantFeatureName: "my-active-feature", // Expect trimmed content
+			wantErr:         false,
 		},
 		{
-			name: "successful load (ignoring phase field in yaml)",
+			name: "successful load with empty content",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
-				// YAML data might still contain current_phase from old files, but it should be ignored on load
-				validYAML := []byte("current_feature: my-feat\ncurrent_phase: design\nversion: 1.1")
-				mockFS.EXPECT().Stat(sessionFilePath).Return(testutil.MockFileInfo{}, nil).Times(1)
-				mockFS.EXPECT().ReadFile(sessionFilePath).Return(validYAML, nil).Times(1)
+				fileContent := []byte(" \n ") // Whitespace only
+				mockFS.EXPECT().ReadFile(sessionFilePath).Return(fileContent, nil).Times(1)
 			},
-			// Expected state only includes fields present in the struct
-			wantState: &SessionState{CurrentFeature: "my-feat", Version: "1.1"},
-			wantErr:   false,
+			wantFeatureName: "", // Expect empty string
+			wantErr:         false,
 		},
 	}
 
@@ -165,76 +159,65 @@ func TestStorage_Load(t *testing.T) {
 			}
 
 			storage := NewStorage(d3Dir, mockFS)
-			gotState, err := storage.Load()
+			gotFeatureName, err := storage.LoadActiveFeature()
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Storage.Load() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Storage.LoadActiveFeature() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
-			// Compare states (ignoring time.Time and removed CurrentPhase)
-			if !tt.wantErr {
-				if gotState == nil || tt.wantState == nil {
-					if gotState != tt.wantState { // Handles case where one is nil and the other isn't
-						t.Errorf("Storage.Load() gotState = %v, want %v", gotState, tt.wantState)
-					}
-				} else if gotState.CurrentFeature != tt.wantState.CurrentFeature ||
-					// gotState.CurrentPhase != tt.wantState.CurrentPhase || // Comparison removed
-					gotState.Version != tt.wantState.Version {
-					t.Errorf("Storage.Load() gotState = %+v, want %+v", gotState, tt.wantState)
-				}
+			if gotFeatureName != tt.wantFeatureName {
+				t.Errorf("Storage.LoadActiveFeature() gotFeatureName = %q, want %q", gotFeatureName, tt.wantFeatureName)
 			}
 		})
 	}
 }
 
-func TestStorage_Save(t *testing.T) {
-	d3Dir := t.TempDir() // Use a temporary directory for test isolation
-	sessionFilePath := filepath.Join(d3Dir, "session.yaml")
+func TestStorage_SaveActiveFeature(t *testing.T) {
+	d3Dir := t.TempDir()
+	sessionFilePath := filepath.Join(d3Dir, ".session") // Path updated
 	dirOfSessionFile := filepath.Dir(sessionFilePath)
 
 	tests := []struct {
-		name        string
-		stateToSave *SessionState // Note: This SessionState struct no longer has CurrentPhase
-		setupMocks  func(mockFS *portsmocks.MockFileSystem, state *SessionState)
-		wantErr     bool
+		name              string
+		featureNameToSave string
+		setupMocks        func(mockFS *portsmocks.MockFileSystem, featureName string)
+		wantErr           bool
 	}{
 		{
-			name:        "error creating directory",
-			stateToSave: &SessionState{CurrentFeature: "feat"}, // Removed CurrentPhase
-			setupMocks: func(mockFS *portsmocks.MockFileSystem, state *SessionState) {
+			name:              "error creating directory",
+			featureNameToSave: "feat1",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featureName string) {
 				mockFS.EXPECT().MkdirAll(dirOfSessionFile, os.FileMode(0755)).Return(fmt.Errorf("mkdir failed")).Times(1)
 			},
 			wantErr: true,
 		},
 		{
-			name:        "error writing file",
-			stateToSave: &SessionState{CurrentFeature: "feat"}, // Removed CurrentPhase
-			setupMocks: func(mockFS *portsmocks.MockFileSystem, state *SessionState) {
+			name:              "error writing file",
+			featureNameToSave: "feat2",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featureName string) {
+				data := []byte(featureName)
 				mockFS.EXPECT().MkdirAll(dirOfSessionFile, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(sessionFilePath, gomock.Any(), os.FileMode(0644)).Return(fmt.Errorf("write failed")).Times(1)
+				mockFS.EXPECT().WriteFile(sessionFilePath, data, os.FileMode(0644)).Return(fmt.Errorf("write failed")).Times(1)
 			},
 			wantErr: true,
 		},
 		{
-			name:        "successful save",
-			stateToSave: &SessionState{CurrentFeature: "feat-ok", Version: "1.2"}, // Removed CurrentPhase
-			setupMocks: func(mockFS *portsmocks.MockFileSystem, state *SessionState) {
+			name:              "successful save",
+			featureNameToSave: "feat-ok",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featureName string) {
+				data := []byte(featureName)
 				mockFS.EXPECT().MkdirAll(dirOfSessionFile, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(sessionFilePath, gomock.Any(), os.FileMode(0644)).DoAndReturn(func(path string, data []byte, perm os.FileMode) error {
-					var writtenState SessionState
-					if err := yaml.Unmarshal(data, &writtenState); err != nil {
-						return fmt.Errorf("failed to unmarshal written data for verification: %w", err)
-					}
-					// Verify only fields present in the struct
-					if writtenState.CurrentFeature != state.CurrentFeature || writtenState.Version != state.Version {
-						return fmt.Errorf("written data mismatch: got %+v, expected fields from %+v", writtenState, state)
-					}
-					if writtenState.LastModified.IsZero() { // Ensure LastModified was set
-						return fmt.Errorf("LastModified was not set in written data")
-					}
-					return nil // Success
-				}).Times(1)
+				mockFS.EXPECT().WriteFile(sessionFilePath, data, os.FileMode(0644)).Return(nil).Times(1)
+			},
+			wantErr: false,
+		},
+		{
+			name:              "successful save of empty string",
+			featureNameToSave: "", // e.g., when exiting a feature
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, featureName string) {
+				data := []byte(featureName)
+				mockFS.EXPECT().MkdirAll(dirOfSessionFile, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(sessionFilePath, data, os.FileMode(0644)).Return(nil).Times(1)
 			},
 			wantErr: false,
 		},
@@ -246,14 +229,65 @@ func TestStorage_Save(t *testing.T) {
 			mockFS := portsmocks.NewMockFileSystem(ctrl)
 
 			if tt.setupMocks != nil {
-				tt.setupMocks(mockFS, tt.stateToSave)
+				tt.setupMocks(mockFS, tt.featureNameToSave)
 			}
 
 			storage := NewStorage(d3Dir, mockFS)
-			err := storage.Save(tt.stateToSave)
+			err := storage.SaveActiveFeature(tt.featureNameToSave)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Storage.Save() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Storage.SaveActiveFeature() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestStorage_ClearActiveFeature(t *testing.T) {
+	d3Dir := t.TempDir()
+	sessionFilePath := filepath.Join(d3Dir, ".session") // Path updated
+
+	tests := []struct {
+		name       string
+		setupMocks func(mockFS *portsmocks.MockFileSystem)
+		wantErr    bool
+	}{
+		{
+			name: "successful clear (file exists)",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
+				mockFS.EXPECT().Remove(sessionFilePath).Return(nil).Times(1)
+			},
+			wantErr: false,
+		},
+		{
+			name: "successful clear (file does not exist)",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
+				mockFS.EXPECT().Remove(sessionFilePath).Return(os.ErrNotExist).Times(1)
+			},
+			wantErr: false, // Not an error if already gone
+		},
+		{
+			name: "error during removal",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem) {
+				mockFS.EXPECT().Remove(sessionFilePath).Return(fmt.Errorf("permission denied")).Times(1)
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockFS := portsmocks.NewMockFileSystem(ctrl)
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockFS)
+			}
+
+			storage := NewStorage(d3Dir, mockFS)
+			err := storage.ClearActiveFeature()
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Storage.ClearActiveFeature() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

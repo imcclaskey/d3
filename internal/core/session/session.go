@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
-
-	"gopkg.in/yaml.v3"
+	"strings"
 
 	"github.com/imcclaskey/d3/internal/core/ports"
 )
@@ -71,72 +69,59 @@ func ParsePhase(s string) (Phase, error) {
 	}
 }
 
-// SessionState contains the simplified d3 session state
-type SessionState struct {
-	// Current context
-	CurrentFeature string `yaml:"current_feature,omitempty"`
+// NOTE: SessionState struct is removed as it's no longer used for .d3/.session
+// If other global, non-feature-specific state needs to be persisted in a committable way,
+// a different mechanism or a separate configuration file might be needed.
 
-	// Meta information
-	LastModified time.Time `yaml:"last_modified,omitempty"`
-	Version      string    `yaml:"version,omitempty"`
-}
-
-// Storage handles session state persistence
+// Storage handles transient active feature state persistence
 type Storage struct {
 	sessionFile string
 	fs          ports.FileSystem
 }
 
-// NewStorage creates a new session storage handler
+// NewStorage creates a new transient session storage handler
 func NewStorage(d3Dir string, fs ports.FileSystem) *Storage {
 	return &Storage{
-		sessionFile: filepath.Join(d3Dir, "session.yaml"),
+		sessionFile: filepath.Join(d3Dir, ".session"), // Point to .session file
 		fs:          fs,
 	}
 }
 
-// Load loads the current session state from disk
-func (s *Storage) Load() (*SessionState, error) {
-	// If session file doesn't exist, error with the targeted path
-	if _, err := s.fs.Stat(s.sessionFile); os.IsNotExist(err) {
-		return nil, fmt.Errorf("session file does not exist: %s", s.sessionFile)
-	}
-
-	// Read session file
+// LoadActiveFeature reads the active feature name from the session file.
+// Returns an empty string and nil error if the file is empty or does not exist.
+func (s *Storage) LoadActiveFeature() (string, error) {
 	data, err := s.fs.ReadFile(s.sessionFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read session file: %w", err)
+		if os.IsNotExist(err) {
+			return "", nil // File not existing means no active feature
+		}
+		return "", fmt.Errorf("failed to read session file %s: %w", s.sessionFile, err)
 	}
-
-	// Parse session file
-	var state SessionState
-	if err := yaml.Unmarshal(data, &state); err != nil {
-		return nil, fmt.Errorf("failed to parse session file: %w", err)
-	}
-
-	return &state, nil
+	// Return the content, trimming whitespace
+	return strings.TrimSpace(string(data)), nil
 }
 
-// Save saves the current session state to disk
-func (s *Storage) Save(state *SessionState) error {
-	// Update last modified
-	state.LastModified = time.Now()
-
-	// Create directory if it doesn't exist
+// SaveActiveFeature saves the active feature name to the session file.
+func (s *Storage) SaveActiveFeature(featureName string) error {
+	// Ensure the base directory exists
 	if err := s.fs.MkdirAll(filepath.Dir(s.sessionFile), 0755); err != nil {
 		return fmt.Errorf("failed to create session file directory: %w", err)
 	}
 
-	// Marshal state to YAML
-	data, err := yaml.Marshal(state)
-	if err != nil {
-		return fmt.Errorf("failed to marshal session state: %w", err)
-	}
-
-	// Write session file
+	// Write the feature name as plain text
+	data := []byte(featureName)
 	if err := s.fs.WriteFile(s.sessionFile, data, 0644); err != nil {
-		return fmt.Errorf("failed to write session file: %w", err)
+		return fmt.Errorf("failed to write session file %s: %w", s.sessionFile, err)
 	}
+	return nil
+}
 
+// ClearActiveFeature removes the session file, effectively clearing the active feature.
+func (s *Storage) ClearActiveFeature() error {
+	err := s.fs.Remove(s.sessionFile)
+	// Ignore "not exist" error, as it means the state is already cleared
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to remove session file %s: %w", s.sessionFile, err)
+	}
 	return nil
 }
