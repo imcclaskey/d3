@@ -14,7 +14,7 @@ import (
 
 // featureStateData defines the structure for a feature's state.yaml file
 type featureStateData struct {
-	LastActivePhase session.Phase `yaml:"last_active_phase"`
+	LastActivePhase session.Phase `yaml:"active_phase"`
 }
 
 const stateFileName = "state.yaml"

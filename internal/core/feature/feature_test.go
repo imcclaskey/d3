@@ -324,7 +324,7 @@ func TestService_GetFeaturePhase(t *testing.T) {
 			name:        "state file exists, valid phase",
 			featureName: "feat1",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
-				validYAML := []byte("last_active_phase: design")
+				validYAML := []byte("active_phase: design")
 				mockFS.EXPECT().ReadFile(stateFilePath).Return(validYAML, nil).Times(1)
 			},
 			wantPhase: session.Design,
@@ -334,7 +334,7 @@ func TestService_GetFeaturePhase(t *testing.T) {
 			name:        "state file exists, empty phase defaults to define",
 			featureName: "feat-empty-phase",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
-				emptyPhaseYAML := []byte("last_active_phase: \"\"") // Empty string phase
+				emptyPhaseYAML := []byte("active_phase: \"\"") // Empty string phase
 				mockFS.EXPECT().ReadFile(stateFilePath).Return(emptyPhaseYAML, nil).Times(1)
 			},
 			wantPhase: session.Define,
@@ -403,7 +403,7 @@ func TestService_GetFeaturePhase(t *testing.T) {
 			name:        "Unmarshal fails",
 			featureName: "feat-unmarshal-err",
 			setupMocks: func(mockFS *portsmocks.MockFileSystem, featurePath string, stateFilePath string) {
-				invalidYAML := []byte("last_active_phase: [invalid]")
+				invalidYAML := []byte("active_phase: [invalid]")
 				mockFS.EXPECT().ReadFile(stateFilePath).Return(invalidYAML, nil).Times(1)
 			},
 			wantPhase: session.None,

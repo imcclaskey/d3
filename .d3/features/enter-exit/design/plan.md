@@ -16,9 +16,9 @@
             *   Add method: `GetFeaturePhase(ctx context.Context, featureName string) (session.Phase, error)`
             *   Add method: `SetFeaturePhase(ctx context.Context, featureName string, phase session.Phase) error`
         *   In `internal/core/feature/feature.go` (implementation of `feature.Service`):
-            *   Define a local struct (e.g., `featureStateData { LastActivePhase session.Phase \`yaml:\"last_active_phase\"\` }`) for `state.yaml`.
-            *   Implement `GetFeaturePhase`: Reads `last_active_phase` from `.d3/features/<featureName>/state.yaml`. If `state.yaml` doesn't exist, it creates it with a default phase (e.g., "define") and returns that phase.
-            *   Implement `SetFeaturePhase`: Writes the provided phase to `.d3/features/<featureName>/state.yaml` as `last_active_phase`.
+            *   Define a local struct (e.g., `featureStateData { LastActivePhase session.Phase \`yaml:\"active_phase\"\` }`) for `state.yaml`.
+            *   Implement `GetFeaturePhase`: Reads `active_phase` from `.d3/features/<featureName>/state.yaml`. If `state.yaml` doesn't exist, it creates it with a default phase (e.g., "define") and returns that phase.
+            *   Implement `SetFeaturePhase`: Writes the provided phase to `.d3/features/<featureName>/state.yaml` as `active_phase`.
             *   Modify the existing `CreateFeature` method in `feature.Service`: Ensure it internally creates the `.d3/features/<featureName>/state.yaml` file with a default phase (e.g., "define") upon successful feature directory creation.
     *   **Task 1.4: Refactor `Project.ChangePhase` to use `FeatureServicer`**
         *   Modify `Project.ChangePhase` in `internal/project/project.go`:
