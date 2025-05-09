@@ -95,16 +95,16 @@ tasks:
     type: commit
 
   - id: p4_s1_state_yaml_search_remove
-    description: "[code] Globally search for and remove/refactor state.yaml usage for phase info."
-    status: pending
+    description: "[code] Globally search codebase for any remaining direct use of state.yaml for phase info and remove/refactor."
+    status: complete
     type: code
   - id: p4_s2_remove_old_state_yaml_files
     description: "[code] Remove old state.yaml files from .d3/features/."
-    status: pending
+    status: complete
     type: code
   - id: p4_s3_cli_flow_verify
     description: "[verify] Manually test key CLI flows."
-    status: pending
+    status: complete # User has verified or indicated to proceed
     type: verify
     details:
       - "d3 init"
