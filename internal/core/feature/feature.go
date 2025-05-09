@@ -10,7 +10,6 @@ import (
 
 	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
-	"gopkg.in/yaml.v3"
 )
 
 //go:generate mockgen -package=mocks -destination=mocks/feature_mock.go . FeatureServicer
@@ -30,12 +29,8 @@ type FeatureServicer interface {
 	ClearActiveFeature() error
 }
 
-// featureStateData defines the structure for a feature's state.yaml file
-type featureStateData struct {
-	LastActivePhase phase.Phase `yaml:"active_phase"`
-}
-
-const stateFileName = "state.yaml"
+const phaseFileName = ".phase"           // New constant for the phase file
+const activeFeatureFileName = ".feature" // New constant for the active feature file
 
 // Service provides feature management operations
 type Service struct {
@@ -52,7 +47,7 @@ func NewService(projectRoot, featuresDir, d3Dir string, fs ports.FileSystem) *Se
 		projectRoot:           projectRoot,
 		featuresDir:           featuresDir,
 		d3Dir:                 d3Dir,
-		activeFeatureFilePath: filepath.Join(d3Dir, ".active_feature"),
+		activeFeatureFilePath: filepath.Join(d3Dir, activeFeatureFileName), // Use new constant
 		fs:                    fs,
 	}
 }
@@ -63,7 +58,7 @@ type FeatureInfo struct {
 	Path string
 }
 
-// CreateFeature creates a new feature directory and its initial state.yaml file
+// CreateFeature creates a new feature directory and its initial .phase file
 func (s *Service) CreateFeature(ctx context.Context, featureName string) (*FeatureInfo, error) {
 	featurePath := filepath.Join(s.featuresDir, featureName)
 
@@ -80,15 +75,15 @@ func (s *Service) CreateFeature(ctx context.Context, featureName string) (*Featu
 		return nil, fmt.Errorf("failed to create feature directory: %w", err)
 	}
 
-	// Create initial state.yaml for the feature
-	initialState := featureStateData{LastActivePhase: phase.Define} // Default to Define phase
-	stateFilePath := filepath.Join(featurePath, stateFileName)
-	data, err := yaml.Marshal(&initialState)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal initial feature state for %s: %w", featureName, err)
-	}
-	if err := s.fs.WriteFile(stateFilePath, data, 0644); err != nil {
-		return nil, fmt.Errorf("failed to write initial state.yaml for feature %s: %w", featureName, err)
+	// Create initial .phase for the feature
+	initialPhase := phase.Define // Default to Define phase
+	phaseFilePath := filepath.Join(featurePath, phaseFileName)
+	data := []byte(string(initialPhase))
+
+	if err := s.fs.WriteFile(phaseFilePath, data, 0644); err != nil {
+		// Attempt to clean up created directory if phase file write fails
+		_ = s.fs.RemoveAll(featurePath)
+		return nil, fmt.Errorf("failed to write initial %s for feature %s: %w", phaseFileName, featureName, err)
 	}
 
 	return &FeatureInfo{
@@ -97,66 +92,76 @@ func (s *Service) CreateFeature(ctx context.Context, featureName string) (*Featu
 	}, nil
 }
 
-// GetFeaturePhase reads the last active phase from a feature's state.yaml file.
-// If state.yaml doesn't exist, it creates it with a default phase (Define) and returns that.
+// GetFeaturePhase reads the phase from a feature's .phase file.
+// If .phase doesn't exist, it creates it with a default phase (Define) and returns that.
 func (s *Service) GetFeaturePhase(ctx context.Context, featureName string) (phase.Phase, error) {
+	if !s.FeatureExists(featureName) {
+		return phase.None, fmt.Errorf("feature %s does not exist", featureName)
+	}
 	featurePath := filepath.Join(s.featuresDir, featureName)
-	stateFilePath := filepath.Join(featurePath, stateFileName)
+	phaseFilePath := filepath.Join(featurePath, phaseFileName)
 
-	data, err := s.fs.ReadFile(stateFilePath)
+	data, err := s.fs.ReadFile(phaseFilePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			// state.yaml does not exist, create it with default Define phase
-			initialState := featureStateData{LastActivePhase: phase.Define}
-			writeData, marshalErr := yaml.Marshal(&initialState)
-			if marshalErr != nil {
-				return phase.None, fmt.Errorf("failed to marshal default state for %s: %w", featureName, marshalErr)
-			}
-			// Ensure feature directory exists before writing state file (important for bare features)
+			// .phase does not exist, create it with default Define phase
+			initialPhase := phase.Define
+			writeData := []byte(string(initialPhase))
+
+			// Ensure feature directory exists (should be redundant if FeatureExists passed, but good for safety)
 			if errMkdir := s.fs.MkdirAll(featurePath, 0755); errMkdir != nil {
-				return phase.None, fmt.Errorf("failed to create directory for feature %s to write state.yaml: %w", featureName, errMkdir)
+				return phase.None, fmt.Errorf("failed to create directory for feature %s to write %s: %w", featureName, phaseFileName, errMkdir)
 			}
-			if writeErr := s.fs.WriteFile(stateFilePath, writeData, 0644); writeErr != nil {
-				return phase.None, fmt.Errorf("failed to write default state.yaml for %s: %w", featureName, writeErr)
+			if writeErr := s.fs.WriteFile(phaseFilePath, writeData, 0644); writeErr != nil {
+				return phase.None, fmt.Errorf("failed to write default %s for %s: %w", phaseFileName, featureName, writeErr)
 			}
-			return phase.Define, nil // Return default phase after creation
+			return initialPhase, nil // Return default phase after creation
 		}
 		// Other error reading file
-		return phase.None, fmt.Errorf("failed to read state.yaml for feature %s: %w", featureName, err)
+		return phase.None, fmt.Errorf("failed to read %s for feature %s: %w", phaseFileName, featureName, err)
 	}
 
-	var state featureStateData
-	if err := yaml.Unmarshal(data, &state); err != nil {
-		return phase.None, fmt.Errorf("failed to unmarshal state.yaml for feature %s: %w", featureName, err)
+	phaseString := strings.TrimSpace(string(data))
+	if phaseString == "" {
+		return phase.None, fmt.Errorf("phase file for feature %s is empty", featureName)
 	}
 
-	if state.LastActivePhase == "" {
-		// If phase is empty string after unmarshal, treat as Define or an error depending on strictness
-		// For now, let's default to Define if it's empty for some reason.
-		return phase.Define, nil
+	p := phase.Phase(phaseString)
+	switch p {
+	case phase.Define, phase.Design, phase.Deliver, phase.None:
+		// Valid phase
+	default:
+		return phase.None, fmt.Errorf("invalid phase value \"%s\" found in %s for feature %s", phaseString, phaseFileName, featureName)
 	}
 
-	return state.LastActivePhase, nil
+	return p, nil
 }
 
-// SetFeaturePhase writes the given phase to a feature's state.yaml file.
+// SetFeaturePhase writes the given phase to a feature's .phase file.
 func (s *Service) SetFeaturePhase(ctx context.Context, featureName string, p phase.Phase) error {
+	switch p {
+	case phase.Define, phase.Design, phase.Deliver:
+		// Valid phase for setting
+	default:
+		return fmt.Errorf("invalid phase provided to set: %s", p)
+	}
+
+	if !s.FeatureExists(featureName) {
+		return fmt.Errorf("feature %s does not exist, cannot set phase", featureName)
+	}
+
 	featurePath := filepath.Join(s.featuresDir, featureName)
-	stateFilePath := filepath.Join(featurePath, stateFileName)
+	phaseFilePath := filepath.Join(featurePath, phaseFileName)
 
-	newState := featureStateData{LastActivePhase: p}
-	data, err := yaml.Marshal(&newState)
-	if err != nil {
-		return fmt.Errorf("failed to marshal feature state for %s: %w", featureName, err)
-	}
+	data := []byte(string(p))
 
-	// Ensure feature directory exists before writing state file (important for bare features)
+	// Ensure feature directory exists before writing phase file
 	if errMkdir := s.fs.MkdirAll(featurePath, 0755); errMkdir != nil {
-		return fmt.Errorf("failed to create directory for feature %s to write state.yaml: %w", featureName, errMkdir)
+		return fmt.Errorf("failed to create directory for feature %s to write %s: %w", featureName, phaseFileName, errMkdir)
 	}
 
-	if err := s.fs.WriteFile(stateFilePath, data, 0644); err != nil {
-		return fmt.Errorf("failed to write state.yaml for feature %s: %w", featureName, err)
+	if err := s.fs.WriteFile(phaseFilePath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write %s for feature %s: %w", phaseFileName, featureName, err)
 	}
 	return nil
 }
@@ -205,7 +210,7 @@ func (s *Service) ListFeatures(ctx context.Context) ([]FeatureInfo, error) {
 // GetActiveFeature reads the active feature name from the active feature file.
 // Returns an empty string and nil error if the file is empty or does not exist.
 func (s *Service) GetActiveFeature() (string, error) {
-	data, err := s.fs.ReadFile(s.activeFeatureFilePath)
+	data, err := s.fs.ReadFile(s.activeFeatureFilePath) // activeFeatureFilePath is now using .feature
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", nil // File not existing means no active feature
@@ -219,13 +224,13 @@ func (s *Service) GetActiveFeature() (string, error) {
 // SetActiveFeature saves the active feature name to the active feature file.
 func (s *Service) SetActiveFeature(featureName string) error {
 	// Ensure the base directory exists
-	if err := s.fs.MkdirAll(filepath.Dir(s.activeFeatureFilePath), 0755); err != nil {
+	if err := s.fs.MkdirAll(filepath.Dir(s.activeFeatureFilePath), 0755); err != nil { // activeFeatureFilePath is now using .feature
 		return fmt.Errorf("failed to create active feature file directory: %w", err)
 	}
 
 	// Write the feature name as plain text
 	data := []byte(featureName)
-	if err := s.fs.WriteFile(s.activeFeatureFilePath, data, 0644); err != nil {
+	if err := s.fs.WriteFile(s.activeFeatureFilePath, data, 0644); err != nil { // activeFeatureFilePath is now using .feature
 		return fmt.Errorf("failed to write active feature file %s: %w", s.activeFeatureFilePath, err)
 	}
 	return nil
@@ -233,7 +238,7 @@ func (s *Service) SetActiveFeature(featureName string) error {
 
 // ClearActiveFeature removes the active feature file, effectively clearing the active feature.
 func (s *Service) ClearActiveFeature() error {
-	err := s.fs.Remove(s.activeFeatureFilePath)
+	err := s.fs.Remove(s.activeFeatureFilePath) // activeFeatureFilePath is now using .feature
 	// Ignore "not exist" error, as it means the state is already cleared
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to remove active feature file %s: %w", s.activeFeatureFilePath, err)
@@ -242,6 +247,7 @@ func (s *Service) ClearActiveFeature() error {
 }
 
 // DeleteFeature removes a feature directory and its contents.
+// The .phase file within the feature directory will be removed as part of RemoveAll.
 // If the deleted feature is the currently active one, it also clears the active feature state.
 // Returns true if the active context was cleared as a result of this deletion.
 func (s *Service) DeleteFeature(ctx context.Context, featureName string) (bool, error) {
