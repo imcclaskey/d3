@@ -5,6 +5,10 @@ description: Progress tracking for State Simplification feature.
 files_modified:
   - internal/core/feature/feature.go
   - internal/core/feature/feature_test.go
+  - internal/project/project.go
+  - internal/project/project_test.go
+  - internal/core/projectfiles/operations.go
+  - internal/core/projectfiles/operations_test.go
 
 # Tasks derived from the delivery steps in plan.md
 tasks:
@@ -36,7 +40,7 @@ tasks:
 
   - id: p2_s1_project_service_mods
     description: "[code] Modify ProjectService (internal/project/project.go) to remove in-memory state."
-    status: pending
+    status: complete
     type: code
     details:
       - "Remove CurrentFeature/CurrentPhase from State struct"
@@ -51,43 +55,43 @@ tasks:
       - "Update DeleteFeature method"
   - id: p2_s2_project_service_tests
     description: "[code] Add/Update unit tests for ProjectService."
-    status: pending
+    status: complete
     type: code
   - id: p2_s3_project_service_run_tests
     description: "[test] Run all unit tests for internal/project/."
-    status: pending
+    status: complete
     type: test
   - id: p2_s4_project_service_commit
     description: "[commit] Commit changes for 'Refactor ProjectService to remove in-memory state'."
-    status: pending
+    status: complete
     type: commit
 
   - id: p3_s1_rules_service_review
     description: "[code] Review RulesServicer (internal/core/rules/rules.go) for correct context usage."
-    status: pending
+    status: complete
     type: code
   - id: p3_s2_gitignore_update
     description: "[code] Update .d3/.gitignore (or main .gitignore)."
-    status: pending
+    status: complete
     type: code
     details:
       - "Add /.feature"
       - "Add features/*/.phase"
   - id: p3_s3_gitignore_verify
     description: "[verify] Manually check gitignore for .feature and .phase files."
-    status: pending
+    status: complete
     type: verify
   - id: p3_s4_cli_tests_update
     description: "[code] Update relevant CLI command tests (cmd/) for new state mechanism."
-    status: pending
+    status: complete
     type: code
   - id: p3_s5_integration_tests
     description: "[test] Run full integration test suite."
-    status: pending
+    status: complete
     type: test
   - id: p3_s6_rules_commit
     description: "[commit] Commit changes for 'Integrate RulesService, update gitignore, and finalize tests'."
-    status: pending
+    status: complete
     type: commit
 
   - id: p4_s1_state_yaml_search_remove
