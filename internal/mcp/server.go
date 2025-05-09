@@ -9,6 +9,7 @@ import (
 	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
+	"github.com/imcclaskey/d3/internal/core/projectfiles"
 	"github.com/imcclaskey/d3/internal/core/rules"
 	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/mcp/tools"
@@ -30,9 +31,10 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 	ruleGenerator := rules.NewRuleGenerator()
 	rulesSvc := rules.NewService(workspaceRoot, cursorRulesDir, ruleGenerator, fs)
 	phaseSvc := phase.NewService(fs)
+	fileOp := projectfiles.NewDefaultFileOperator()
 
 	// Initialize real project instance. It implements ProjectService.
-	proj := project.New(workspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc)
+	proj := project.New(workspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc, fileOp)
 
 	// Create MCP server
 	mcpServer := server.NewMCPServer(

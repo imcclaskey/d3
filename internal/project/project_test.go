@@ -4,22 +4,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
-
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/imcclaskey/d3/internal/core/feature"
 	portsmocks "github.com/imcclaskey/d3/internal/core/ports/mocks"
 	"github.com/imcclaskey/d3/internal/core/session"
-	"github.com/imcclaskey/d3/internal/testutil" // Import shared test utilities
+	"github.com/imcclaskey/d3/internal/testutil"
 )
 
 // Helper to create a default project with gomocks for testing
 // This function now returns all the mocks it creates so they can be used for setting expectations.
-func newTestProjectWithMocks(t *testing.T, ctrl *gomock.Controller) (*Project, *portsmocks.MockFileSystem, *MockStorageService, *MockFeatureServicer, *MockRulesServicer, *MockPhaseServicer) {
+func newTestProjectWithMocks(t *testing.T, ctrl *gomock.Controller) (*Project, *portsmocks.MockFileSystem, *MockStorageService, *MockFeatureServicer, *MockRulesServicer, *MockPhaseServicer, *MockFileOperator) {
 	t.Helper()
 	projectRoot := t.TempDir() // Using t.TempDir() for proper test isolation
 
@@ -28,12 +27,13 @@ func newTestProjectWithMocks(t *testing.T, ctrl *gomock.Controller) (*Project, *
 	mockFeatureSvc := NewMockFeatureServicer(ctrl)
 	mockRulesSvc := NewMockRulesServicer(ctrl)
 	mockPhaseSvc := NewMockPhaseServicer(ctrl)
+	mockFileOp := NewMockFileOperator(ctrl)
 
 	// New() is now "dumb" and does not perform I/O for initialization status.
 	// The _isInitialized field will be nil.
 	// The first call to proj.IsInitialized() in a test will trigger fs.Stat().
-	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc)
-	return proj, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc
+	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc, mockFileOp)
+	return proj, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc, mockFileOp
 }
 
 // TestProject_New tests the New function (which is now very simple)
@@ -47,9 +47,10 @@ func TestProject_New_WithGoMock(t *testing.T) {
 	mockFeatureSvc := NewMockFeatureServicer(ctrl)
 	mockRulesSvc := NewMockRulesServicer(ctrl)
 	mockPhaseSvc := NewMockPhaseServicer(ctrl)
+	mockFileOp := NewMockFileOperator(ctrl)
 
 	// New() no longer performs I/O, so no fs.Stat mock needed here.
-	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc)
+	proj := New(projectRoot, mockFS, mockSessionSvc, mockFeatureSvc, mockRulesSvc, mockPhaseSvc, mockFileOp)
 
 	if proj == nil {
 		t.Fatal("New() returned nil")
@@ -68,6 +69,9 @@ func TestProject_New_WithGoMock(t *testing.T) {
 	}
 	if proj.phases != mockPhaseSvc {
 		t.Errorf("Expected phases to be mockPhaseSvc")
+	}
+	if proj.fileOp != mockFileOp {
+		t.Errorf("Expected fileOp to be mockFileOp")
 	}
 	if proj.state.ProjectRoot != projectRoot {
 		t.Errorf("Expected ProjectRoot to be '%s', got '%s'", projectRoot, proj.state.ProjectRoot)
@@ -114,7 +118,7 @@ func TestProject_IsInitialized(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, _, _, _, _ := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, _, _, _, _, _ := newTestProjectWithMocks(t, ctrl)
 
 			d3DirForCheck := proj.state.D3Dir
 
@@ -163,7 +167,7 @@ func TestProject_RequiresInitialized(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, _, _, _, _ := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, _, _, _, _, _ := newTestProjectWithMocks(t, ctrl)
 
 			d3DirForCheck := proj.state.D3Dir
 
@@ -184,49 +188,37 @@ func TestProject_RequiresInitialized(t *testing.T) {
 
 func TestProject_Init(t *testing.T) {
 	type args struct {
-		clean bool
+		clean   bool
+		refresh bool
 	}
 	tests := []struct {
-		name string
-		args args
-		// Single function to set up all mocks for the test case
-		setupMocks         func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer)
+		name               string
+		args               args
+		setupMocks         func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator)
 		wantErr            bool
 		wantResultMsg      string
 		verifyProjectState func(t *testing.T, proj *Project)
 	}{
 		{
-			name: "already initialized, not clean",
-			args: args{clean: false},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				// Expect the Stat call from Init -> IsInitialized
+			name: "standard init on existing project (no flags)",
+			args: args{clean: false, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
-				// No other mocks needed as Init returns early
 			},
 			wantErr:       false,
-			wantResultMsg: "Project already initialized.",
+			wantResultMsg: "Project already initialized. Use --refresh to update or --clean to reset.",
 		},
 		{
-			name: "not initialized, successful init",
-			args: args{clean: false},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				// Expect the Stat call from Init -> IsInitialized
+			name: "standard init on new project (no flags)",
+			args: args{clean: false, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
-				// Expect subsequent calls within Init
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1)
-
-				// Mocks for ensureGitignoreEntries
-				d3GitignorePath := filepath.Join(proj.state.D3Dir, ".gitignore")
-				cursorRulesD3Dir := filepath.Join(proj.state.CursorRulesDir, "d3")
-				cursorGitignorePath := filepath.Join(cursorRulesD3Dir, ".gitignore")
-				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1) // Called by ensureGitignoreEntries for .d3/.gitignore
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1)
-				mockFS.EXPECT().MkdirAll(cursorRulesD3Dir, os.FileMode(0755)).Return(nil).Times(1) // Called by ensureGitignoreEntries for .cursor/rules/d3/.gitignore
-				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1)
-
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules("", "").Return(nil).Times(1)
+				mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1)
 			},
 			wantErr:       false,
 			wantResultMsg: "Project initialized successfully. Cursor rules have been updated.",
@@ -235,7 +227,6 @@ func TestProject_Init(t *testing.T) {
 				if !ok {
 					t.Fatal("proj.fs is not a mock in verifyProjectState")
 				}
-				// Expect the Stat call *before* calling IsInitialized again.
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 				if !proj.IsInitialized() {
 					t.Errorf("Expected proj.IsInitialized() to be true after successful init")
@@ -244,48 +235,71 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "initialized, clean init",
-			args: args{clean: true},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
-				// Expect the Stat call from Init -> IsInitialized
+			args: args{clean: true, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
+				_ = filepath.Join(proj.state.ProjectRoot, "mcp.json") // mcpPath no longer directly used in this mock setup for removal
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
-
-				// Define variables needed within InOrder block first
-				d3GitignorePath := filepath.Join(proj.state.D3Dir, ".gitignore")
-				cursorRulesD3Dir := filepath.Join(proj.state.CursorRulesDir, "d3")
-				cursorGitignorePath := filepath.Join(cursorRulesD3Dir, ".gitignore")
-
-				// Expect subsequent calls within Init in order
+				mockFS.EXPECT().RemoveAll(proj.state.D3Dir).Return(nil).Times(1)
+				// mockFS.EXPECT().Stat(mcpPath).Return(testutil.MockFileInfo{FName: "mcp.json"}, nil).Times(1) // No longer removing mcp.json, so no Stat check for it before removal
+				// mockFS.EXPECT().Remove(mcpPath).Return(nil).Times(1) // mcp.json is NOT removed
+				mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1) // This is for clearing session state, still relevant
+				// Standard init steps after potential cleanups
+				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockRules.EXPECT().RefreshRules("", "").Return(nil).Times(1)
+				mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1) // Called again at the end of performInit regardless of clean
+			},
+			wantErr:       false,
+			wantResultMsg: "Project cleaned and re-initialized successfully. Cursor rules have been updated.",
+		},
+		{
+			name: "refresh on new project",
+			args: args{clean: false, refresh: true},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockRules.EXPECT().RefreshRules("", "").Return(nil).Times(1)
+				mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1)
+			},
+			wantErr:       false,
+			wantResultMsg: "Project initialized successfully (refresh on non-existent project). Cursor rules have been updated.",
+		},
+		{
+			name: "refresh on existing project - mcp.json updated, other entries preserved",
+			args: args{clean: false, refresh: true},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				// Sequence for refresh: MkdirAll for core dirs, then fileOp.EnsureMCPJSON, then fileOp.EnsureD3GitignoreEntries, then rules.RefreshRules
 				gomock.InOrder(
-					mockFS.EXPECT().RemoveAll(proj.state.D3Dir).Return(nil).Times(1),
-					mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1), // Called during clean
 					mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1),
-					mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1), // Called again by Init logic
-					// Mocks for ensureGitignoreEntries within InOrder
-					mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1),
-					mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1),
-					mockFS.EXPECT().MkdirAll(cursorRulesD3Dir, os.FileMode(0755)).Return(nil).Times(1),
-					mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1),
+					mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1),
+					mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1),
 					mockRules.EXPECT().RefreshRules("", "").Return(nil).Times(1),
 				)
 			},
 			wantErr:       false,
-			wantResultMsg: "Project initialized successfully. Cursor rules have been updated.",
+			wantResultMsg: "Project refreshed successfully. Cursor rules have been updated.",
 		},
 		{
 			name: "error on RemoveAll during clean init",
-			args: args{clean: true},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
+			args: args{clean: true, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 				mockFS.EXPECT().RemoveAll(proj.state.D3Dir).Return(fmt.Errorf("failed to remove")).Times(1)
-				mockSession.EXPECT().ClearActiveFeature().Return(nil).AnyTimes() // Allow clean's ClearActiveFeature if it happens before error
+				mockSession.EXPECT().ClearActiveFeature().Return(nil).AnyTimes()
 			},
 			wantErr: true,
 		},
 		{
 			name: "error on MkdirAll for .d3",
-			args: args{clean: false},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
+			args: args{clean: false, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(fmt.Errorf("failed to mkdir .d3")).Times(1)
 			},
@@ -293,32 +307,51 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "error on session.ClearActiveFeature",
-			args: args{clean: false},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
+			args: args{clean: false, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockRules.EXPECT().RefreshRules("", "").Return(nil).Times(1)
 				mockSession.EXPECT().ClearActiveFeature().Return(fmt.Errorf("session clear failed")).Times(1)
 			},
 			wantErr: true,
 		},
 		{
 			name: "error on rules.RefreshRules",
-			args: args{clean: false},
-			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer) {
+			args: args{clean: false, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockSession.EXPECT().ClearActiveFeature().Return(nil).Times(1)
-				// Mocks for ensureGitignoreEntries (success case needed before rules fail)
-				d3GitignorePath := filepath.Join(proj.state.D3Dir, ".gitignore")
-				cursorRulesD3Dir := filepath.Join(proj.state.CursorRulesDir, "d3")
-				cursorGitignorePath := filepath.Join(cursorRulesD3Dir, ".gitignore")
-				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1)
-				mockFS.EXPECT().MkdirAll(cursorRulesD3Dir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules("", "").Return(fmt.Errorf("rules refresh failed")).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "error from EnsureMCPJSON",
+			args: args{clean: false, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(fmt.Errorf("mcp.json ensure failed")).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name: "error from EnsureD3GitignoreEntries",
+			args: args{clean: false, refresh: false},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockSession *MockStorageService, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(fmt.Errorf("gitignore ensure failed")).Times(1)
 			},
 			wantErr: true,
 		},
@@ -327,15 +360,16 @@ func TestProject_Init(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, mockSession, _, mockRules, mockPhase := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, mockSession, _, mockRules, mockPhase, mockFileOp := newTestProjectWithMocks(t, ctrl)
 
 			// Set up all mocks for this test case
 			if tt.setupMocks != nil {
-				tt.setupMocks(proj, mockFS, mockSession, mockRules, mockPhase)
+				tt.setupMocks(proj, mockFS, mockSession, mockRules, mockPhase, mockFileOp)
 			}
-			_ = mockPhase // Avoid unused variable error if setupMocks doesn't use it
+			_ = mockPhase  // Avoid unused variable error if setupMocks doesn't use it
+			_ = mockFileOp // Avoid unused variable error if setupMocks doesn't use it
 
-			result, err := proj.Init(tt.args.clean)
+			result, err := proj.Init(tt.args.clean, tt.args.refresh)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)
@@ -433,7 +467,7 @@ func TestProject_CreateFeature(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, mockSession, mockFeature, mockRules, mockPhase := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, mockSession, mockFeature, mockRules, mockPhase, _ := newTestProjectWithMocks(t, ctrl)
 
 			// Set up all mocks for this test case
 			if tt.setupMocks != nil {
@@ -601,7 +635,7 @@ func TestProject_ChangePhase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, mockSession, mockFeature, mockRules, mockPhase := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, mockSession, mockFeature, mockRules, mockPhase, _ := newTestProjectWithMocks(t, ctrl)
 
 			// Set up all mocks and potentially initial proj.state for this test case
 			if tt.setupMocksAndState != nil {
@@ -716,7 +750,7 @@ func TestProject_EnterFeature(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctrl := gomock.NewController(t)
-			proj, mockFS, mockSession, mockFeature, mockRules, _ := newTestProjectWithMocks(t, ctrl)
+			proj, mockFS, mockSession, mockFeature, mockRules, _, _ := newTestProjectWithMocks(t, ctrl)
 
 			// Set up all mocks for this test case
 			if tt.setupMocks != nil {

@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/session"
 )
@@ -63,38 +62,12 @@ func (r *Result) FormatMCP() string {
 	return r.Message
 }
 
-//go:generate mockgen -package=project -destination=interfaces_mock.go github.com/imcclaskey/d3/internal/project StorageService,FeatureServicer,RulesServicer,PhaseServicer
-//go:generate mockgen -package=project -destination=project_service_mock.go github.com/imcclaskey/d3/internal/project ProjectService
-
-// StorageService defines the interface for session storage operations.
-type StorageService interface {
-	LoadActiveFeature() (string, error)
-	SaveActiveFeature(featureName string) error
-	ClearActiveFeature() error
-}
-
-// FeatureServicer defines the interface for feature management operations.
-type FeatureServicer interface {
-	CreateFeature(ctx context.Context, featureName string) (*feature.FeatureInfo, error)
-	GetFeaturePhase(ctx context.Context, featureName string) (session.Phase, error)
-	SetFeaturePhase(ctx context.Context, featureName string, phase session.Phase) error
-}
-
-// RulesServicer defines the interface for rule management operations.
-type RulesServicer interface {
-	RefreshRules(feature string, phaseStr string) error
-	ClearGeneratedRules() error
-}
-
-// PhaseServicer defines the interface for phase management operations.
-type PhaseServicer interface {
-	EnsurePhaseFiles(featureDir string) error
-}
+//go:generate mockgen -package=project -destination=project_service_mock.go . ProjectService
 
 // ProjectService defines the interface for project operations used by CLI and MCP.
 // This allows for mocking the entire project service in tests for commands/tools.
 type ProjectService interface {
-	Init(clean bool) (*Result, error)
+	Init(clean bool, refresh bool) (*Result, error)
 	CreateFeature(ctx context.Context, featureName string) (*Result, error)
 	ChangePhase(ctx context.Context, targetPhase session.Phase) (*Result, error)
 	EnterFeature(ctx context.Context, featureName string) (*Result, error)
@@ -128,11 +101,12 @@ type Project struct {
 	rules    RulesServicer
 	phases   PhaseServicer
 	fs       ports.FileSystem
+	fileOp   FileOperator
 }
 
 // New creates a new project instance from project root, now with dependency injection
 // It no longer performs I/O.
-func New(projectRoot string, fs ports.FileSystem, sessionSvc StorageService, featureSvc FeatureServicer, rulesSvc RulesServicer, phasesSvc PhaseServicer) *Project {
+func New(projectRoot string, fs ports.FileSystem, sessionSvc StorageService, featureSvc FeatureServicer, rulesSvc RulesServicer, phasesSvc PhaseServicer, fileOp FileOperator) *Project {
 	state := newState(projectRoot)
 
 	proj := &Project{
@@ -142,6 +116,7 @@ func New(projectRoot string, fs ports.FileSystem, sessionSvc StorageService, fea
 		phases:   phasesSvc,
 		features: featureSvc,
 		fs:       fs,
+		fileOp:   fileOp,
 	}
 	return proj
 }
@@ -181,95 +156,88 @@ func (p *Project) RequiresInitialized() error {
 	return nil
 }
 
-// Init initializes the project
-func (p *Project) Init(clean bool) (*Result, error) {
-	// Check current initialized status via direct filesystem check
-	isCurrentlyInitialized := p.IsInitialized()
+// Init initializes or refreshes the project
+func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
+	originalIsCurrentlyInitialized := p.IsInitialized()
+	actionMessage := "Project initialized successfully." // Default message
+	performedClean := false
 
-	if isCurrentlyInitialized && !clean {
-		return NewResult("Project already initialized."), nil
-	}
-
-	if clean && isCurrentlyInitialized {
-		if err := p.fs.RemoveAll(p.state.D3Dir); err != nil {
-			return nil, fmt.Errorf("failed to clean existing d3 directory: %w", err)
+	if clean {
+		performedClean = true
+		if originalIsCurrentlyInitialized {
+			if err := p.fs.RemoveAll(p.state.D3Dir); err != nil {
+				return nil, fmt.Errorf("failed to clean existing .d3 directory: %w", err)
+			}
+			// mcp.json is no longer removed during clean.
+			// _ = filepath.Join(p.state.ProjectRoot, "mcp.json") // mcpPath
+			// if _, statErr := p.fs.Stat(mcpPath); statErr == nil {
+			// 	if err := p.fs.Remove(mcpPath); err != nil {
+			// 		fmt.Fprintf(os.Stderr, "warning: failed to remove mcp.json during clean: %v\n", err)
+			// 	}
+			// }
+			// Clear active feature from session storage as part of clean
+			if err := p.session.ClearActiveFeature(); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to clear transient session during clean init: %v\n", err)
+			}
 		}
-		if err := p.session.ClearActiveFeature(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to clear transient session during clean init: %v\n", err)
+		actionMessage = "Project cleaned and re-initialized successfully."
+	} else if refresh {
+		if !originalIsCurrentlyInitialized {
+			// Refreshing a non-existent project is like a standard init
+			actionMessage = "Project initialized successfully (refresh on non-existent project)."
+		} else {
+			actionMessage = "Project refreshed successfully."
 		}
+		// For refresh, we proceed to ensure all components even if already initialized.
+	} else { // Standard init (neither clean nor refresh)
+		if originalIsCurrentlyInitialized {
+			return NewResult("Project already initialized. Use --refresh to update or --clean to reset."), nil
+		}
+		// New project initialization, actionMessage is already "Project initialized successfully."
 	}
 
-	// Create directories
-	directories := []string{
-		p.state.D3Dir,
-		p.state.FeaturesDir,
-	}
-
+	// Create .d3/ and .d3/features/ directories (idempotent)
+	directories := []string{p.state.D3Dir, p.state.FeaturesDir}
 	for _, dir := range directories {
 		if err := p.fs.MkdirAll(dir, 0755); err != nil {
 			return nil, fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
 
-	// Initialize transient session (empty active feature)
-	if err := p.session.ClearActiveFeature(); err != nil {
-		return nil, fmt.Errorf("failed to initialize transient session: %w", err)
+	// Always attempt to preserve other entries in mcp.json.
+	// EnsureMCPJSON will create a new file with only the d3 entry if mcp.json doesn't exist.
+	err := p.fileOp.EnsureMCPJSON(p.fs, p.state.ProjectRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to ensure mcp.json: %w", err)
 	}
 
-	// Add .gitignore entries
-	if err := p.ensureGitignoreEntries(); err != nil {
-		// Log warning, but don't fail init
-		fmt.Fprintf(os.Stderr, "warning: failed to update .gitignore: %v\n", err)
+	// Ensure d3-specific .gitignore files (e.g., .d3/.gitignore)
+	// Call the exported helper function from projectfiles package
+	if err = p.fileOp.EnsureD3GitignoreEntries(p.fs, p.state.D3Dir, p.state.CursorRulesDir, p.state.ProjectRoot); err != nil {
+		// fmt.Fprintf(os.Stderr, "warning: failed to update d3-specific .gitignore files: %v\n", err)
+		return nil, fmt.Errorf("failed to update d3-specific .gitignore files: %w", err)
 	}
 
-	// Initialize rules
+	// Initialize/Refresh rules (.cursor/rules/d3/)
 	if err := p.rules.RefreshRules("", ""); err != nil {
-		return nil, fmt.Errorf("failed to initialize rules: %w", err)
+		return nil, fmt.Errorf("failed to initialize/refresh rules: %w", err)
 	}
 
-	// Mark project as initialized - No longer needed as IsInitialized checks disk
-	// newInitState := true
-	// p._isInitialized = &newInitState // Removed
+	// Initialize transient session (empty active feature) only if it's a fresh start
+	// A fresh start means it was cleaned, or it was not originally initialized.
+	// Do not clear active feature during a refresh of an already initialized project.
+	if performedClean || !originalIsCurrentlyInitialized {
+		if err := p.session.ClearActiveFeature(); err != nil {
+			// This might be an error if the session store itself is problematic, but init should still mostly succeed.
+			// fmt.Fprintf(os.Stderr, "warning: failed to initialize/clear transient session: %v\n", err)
+			return nil, fmt.Errorf("failed to initialize/clear transient session: %w", err)
+		}
+	}
+
 	p.state.CurrentFeature = ""
 	p.state.CurrentPhase = session.None
 
-	return NewResultWithRulesChanged("Project initialized successfully."), nil
-}
-
-// ensureGitignoreEntries creates .gitignore files in specific d3 directories.
-func (p *Project) ensureGitignoreEntries() error {
-	type gitignoreTarget struct {
-		path    string // Relative to project root
-		content string
-	}
-
-	targets := []gitignoreTarget{
-		{
-			path:    filepath.Join(".d3", ".gitignore"),
-			content: ".session\n", // Content for .d3/.gitignore
-		},
-		{
-			path:    filepath.Join(".cursor", "rules", "d3", ".gitignore"),
-			content: "*.gen.mdc\n", // Content for .cursor/rules/d3/.gitignore
-		},
-	}
-
-	for _, target := range targets {
-		fullPath := filepath.Join(p.state.ProjectRoot, target.path)
-		dir := filepath.Dir(fullPath)
-
-		// Ensure the target directory exists
-		if err := p.fs.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s for .gitignore: %w", dir, err)
-		}
-
-		// Write the .gitignore file (overwrites if exists)
-		if err := p.fs.WriteFile(fullPath, []byte(target.content), 0644); err != nil {
-			return fmt.Errorf("failed to write %s: %w", fullPath, err)
-		}
-	}
-
-	return nil
+	return NewResultWithRulesChanged(actionMessage), nil
 }
 
 // CreateFeature creates a new feature and sets it as the current feature

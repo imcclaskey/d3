@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/imcclaskey/d3/internal/core/feature"
 	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
+	"github.com/imcclaskey/d3/internal/core/projectfiles"
 	"github.com/imcclaskey/d3/internal/core/rules"
 	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/project"
@@ -16,7 +18,8 @@ import (
 
 // InitCommand represents the init command implementation
 type InitCommand struct {
-	clean bool
+	clean   bool
+	refresh bool
 	// Use an unexported field for the project service dependency, allowing tests to set it.
 	// Production code will set it with the real instance.
 	projectSvc project.ProjectService
@@ -31,6 +34,9 @@ func NewInitCommand() *cobra.Command {
 		Long:  "Initialize d3 in the current workspace and create base project files",
 		Args:  cobra.NoArgs,
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
+			if cmdRunner.clean && cmdRunner.refresh {
+				return errors.New("--clean and --refresh flags are mutually exclusive")
+			}
 			projectRoot, err := os.Getwd()
 			if err != nil {
 				return fmt.Errorf("could not determine project root: %w", err)
@@ -43,24 +49,27 @@ func NewInitCommand() *cobra.Command {
 			ruleGenerator := rules.NewRuleGenerator()
 			rulesSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
 			phaseSvc := phase.NewService(fs)
+			fileOp := projectfiles.NewDefaultFileOperator()
 
-			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc)
+			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc, fileOp)
 
-			return cmdRunner.run(cmdRunner.clean)
+			return cmdRunner.run(cmdRunner.clean, cmdRunner.refresh)
 		},
 	}
-	cobraCmd.Flags().BoolVar(&cmdRunner.clean, "clean", false, "Perform a clean initialization (remove existing files)")
+	cobraCmd.Flags().BoolVar(&cmdRunner.clean, "clean", false, "Perform a clean initialization (remove existing .d3 directory)")
+	cobraCmd.Flags().BoolVar(&cmdRunner.refresh, "refresh", false, "Refresh an existing d3 environment, creating missing standard files/directories without data loss")
 	return cobraCmd
 }
 
 // run is the core logic.
-func (c *InitCommand) run(clean bool) error {
+func (c *InitCommand) run(clean bool, refresh bool) error {
 	// If projectSvc is nil (e.g. not set by test or RunE), it would panic.
 	// This implies RunE should always set it, or tests should always set it.
 	if c.projectSvc == nil {
 		return fmt.Errorf("project service not initialized in InitCommand")
 	}
-	result, err := c.projectSvc.Init(clean)
+	// The ProjectService.Init method now handles the logic for clean and refresh.
+	result, err := c.projectSvc.Init(clean, refresh) // Pass both flags
 	if err != nil {
 		return err
 	}

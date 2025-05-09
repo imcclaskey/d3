@@ -1,0 +1,66 @@
+# Tasks for cli-consolidation feature
+# schema_version: 1.0
+modified_files:
+  - internal/project/project.go
+  - internal/core/projectfiles/operations_test.go
+  - internal/project/project_test.go
+  - README.md
+  - internal/mcp/tools/meta.go
+  - internal/mcp/tools/tools_test.go
+tasks:
+  - id: 1
+    description: "Analyze the existing internal/cli/command/init.go and project.ProjectService.Init() implementation to fully understand current behavior, especially regarding the --clean flag and mcp.json handling."
+    type: "code"
+    status: "complete"
+  - id: 2
+    description: "Design and implement the --refresh flag logic within InitCommand."
+    type: "code"
+    status: "complete"
+  - id: 3
+    description: "Create internal/core/projectfiles/operations.go: Define Config type (for mcp.json) and constants. Implement exported helper functions EnsureMCPJSON(...) and EnsureD3GitignoreEntries(...) by moving and adapting logic previously in ProjectService private methods."
+    type: "code"
+    status: "complete"
+  - id: 4
+    description: "Update ProjectService.Init() (internal/project/project.go) to call the new exported functions from the projectfiles package. Adjust internal/cli/command/init.go if necessary for instantiation or parameter passing changes."
+    type: "code"
+    status: "complete"
+  - id: 5
+    description: "Write dedicated, thorough unit tests for projectfiles.EnsureMCPJSON and projectfiles.EnsureD3GitignoreEntries in internal/core/projectfiles/operations_test.go, comprehensively mocking ports.FileSystem."
+    type: "code"
+    status: "complete"
+  - id: 6
+    description: "Update and simplify tests for ProjectService.Init() (TestProject_Init in internal/project/project_test.go). Focus on orchestration, init modes (clean/refresh/new), and mocking interactions with direct dependencies (other services) and the key outcomes of projectfiles helper calls (via p.fs mocks)."
+    type: "code"
+    status: "complete"
+  - id: 7
+    description: "Run all unit tests for the modified command and services."
+    type: "test"
+    status: "complete"
+  - id: 8
+    description: "Update any relevant documentation to reflect the enhanced d3 init command, its --refresh flag, and the clarified --clean behavior."
+    type: "code"
+    status: "complete"
+  - id: 9
+    description: "Modify the mcp_tool_init tool to guide the user to use d3 init CLI command."
+    type: "code"
+    status: "complete"
+  - id: 10
+    description: "Manually test d3 init (no flags) in a new directory."
+    type: "verify"
+    status: "complete"
+  - id: 11
+    description: "Manually test d3 init --refresh in an existing project: With some standard d3 directories/files missing. With mcp.json having some user-set values (e.g., a custom port). With an existing .gitignore file."
+    type: "verify"
+    status: "complete"
+  - id: 12
+    description: "Manually test d3 init --clean and document its exact behavior."
+    type: "verify"
+    status: "complete"
+  - id: 13
+    description: "Commit changes related to d3 init command enhancements and tests."
+    type: "commit"
+    status: "pending"
+  - id: 14
+    description: "Commit changes related to mcp_tool_init deprecation and documentation updates."
+    type: "commit"
+    status: "pending"

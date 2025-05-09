@@ -286,77 +286,32 @@ func TestHandleInit(t *testing.T) {
 		name           string
 		toolNameForReq string
 		params         map[string]interface{}
-		setupMockProj  func(mockProj *project.MockProjectService)
+		// setupMockProj  func(mockProj *project.MockProjectService) // No longer needed as proj is not used
 		wantResultText string
 		wantIsErrorSet bool
 		wantHandlerErr bool
 	}{
 		{
-			name:           "successful init without clean flag",
+			name:           "returns guidance message to use CLI",
 			toolNameForReq: "d3_init",
-			params:         map[string]interface{}{},
-			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().Init(false).
-					Return(project.NewResult("Project initialized successfully."), nil).Times(1)
-			},
-			wantResultText: "Project initialized successfully.",
+			params:         map[string]interface{}{}, // Params like 'clean' are now ignored by the handler
+			// setupMockProj: func(mockProj *project.MockProjectService) {}, // No mock setup needed
+			wantResultText: "To initialize d3 in your project, please run the `d3 init` command in your terminal. You can use flags like `--clean` or `--refresh` as needed. For example: `d3 init --refresh`",
 			wantIsErrorSet: false,
+			wantHandlerErr: false,
 		},
-		{
-			name:           "successful init with clean flag",
-			toolNameForReq: "d3_init",
-			params:         map[string]interface{}{"clean": true},
-			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().Init(true).
-					Return(project.NewResult("Project initialized with clean option."), nil).Times(1)
-			},
-			wantResultText: "Project initialized with clean option.",
-			wantIsErrorSet: false,
-		},
-		{
-			name:           "init with rules changed",
-			toolNameForReq: "d3_init",
-			params:         map[string]interface{}{"clean": false},
-			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().Init(false).
-					Return(project.NewResultWithRulesChanged("Project initialized with rules."), nil).Times(1)
-			},
-			wantResultText: "Project initialized with rules. Cursor rules have changed. Stop your current behavior and await further instruction.",
-			wantIsErrorSet: false,
-		},
-		{
-			name:           "error during initialization",
-			toolNameForReq: "d3_init",
-			params:         map[string]interface{}{},
-			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().Init(false).
-					Return(nil, fmt.Errorf("initialization failed")).Times(1)
-			},
-			wantResultText: "System error initializing project: initialization failed",
-			wantIsErrorSet: true,
-		},
-		{
-			name:           "project service is nil",
-			toolNameForReq: "d3_init",
-			params:         map[string]interface{}{},
-			setupMockProj:  nil,
-			wantResultText: "Internal error: Project context is nil",
-			wantIsErrorSet: true,
-		},
+		// Other previous test cases for different init scenarios are removed
+		// as the tool now has a single behavior: guide to CLI.
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			mockProjSvc := project.NewMockProjectService(ctrl)
+			// ctrl := gomock.NewController(t) // No longer needed as no mocks are used
+			// mockProjSvc := project.NewMockProjectService(ctrl) // ProjSvc is not used by the handler anymore
 
-			var handler server.ToolHandlerFunc
-			if tt.setupMockProj == nil {
-				handler = HandleInit(nil)
-			} else {
-				tt.setupMockProj(mockProjSvc)
-				handler = HandleInit(mockProjSvc)
-			}
+			// The handler no longer uses the project service, so passing nil is acceptable for the test.
+			// If it were still used, we'd pass mockProjSvc.
+			handler := HandleInit(nil) // proj project.ProjectService is not used
 
 			request := testutil.NewTestCallToolRequest(tt.toolNameForReq, tt.params)
 			result, err := handler(context.Background(), request)

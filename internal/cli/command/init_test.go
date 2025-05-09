@@ -27,33 +27,47 @@ func TestInitCommand_RunLogic(t *testing.T) {
 	tests := []struct {
 		name                string
 		cleanFlag           bool
+		refreshFlag         bool
 		setupMockProjectSvc func(mockSvc *project.MockProjectService)
 		wantErr             bool
 		wantOutputContains  string
 	}{
 		{
-			name:      "successful init, no clean flag",
-			cleanFlag: false,
+			name:        "successful init, no clean flag",
+			cleanFlag:   false,
+			refreshFlag: false,
 			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
-				mockSvc.EXPECT().Init(false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
+				mockSvc.EXPECT().Init(false, false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
 			},
 			wantErr:            false,
 			wantOutputContains: "Project initialized successfully. Cursor rules have been updated.",
 		},
 		{
-			name:      "successful init, with clean flag",
-			cleanFlag: true,
+			name:        "successful init, with clean flag",
+			cleanFlag:   true,
+			refreshFlag: false,
 			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
-				mockSvc.EXPECT().Init(true).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
+				mockSvc.EXPECT().Init(true, false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
 			},
 			wantErr:            false,
 			wantOutputContains: "Project initialized successfully. Cursor rules have been updated.",
 		},
 		{
-			name:      "init fails in projectSvc.Init",
-			cleanFlag: false,
+			name:        "successful init, with refresh flag",
+			cleanFlag:   false,
+			refreshFlag: true,
 			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
-				mockSvc.EXPECT().Init(false).Return(nil, fmt.Errorf("project init failed")).Times(1)
+				mockSvc.EXPECT().Init(false, true).Return(project.NewResultWithRulesChanged("Project refreshed successfully."), nil).Times(1)
+			},
+			wantErr:            false,
+			wantOutputContains: "Project refreshed successfully. Cursor rules have been updated.",
+		},
+		{
+			name:        "init fails in projectSvc.Init",
+			cleanFlag:   false,
+			refreshFlag: false,
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
+				mockSvc.EXPECT().Init(false, false).Return(nil, fmt.Errorf("project init failed")).Times(1)
 			},
 			wantErr:            true,
 			wantOutputContains: "project init failed",
@@ -71,6 +85,7 @@ func TestInitCommand_RunLogic(t *testing.T) {
 
 			cmdInstance := &InitCommand{
 				clean:      tt.cleanFlag,
+				refresh:    tt.refreshFlag,
 				projectSvc: mockProjectSvc,
 			}
 
@@ -79,7 +94,7 @@ func TestInitCommand_RunLogic(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			err := cmdInstance.run(tt.cleanFlag)
+			err := cmdInstance.run(tt.cleanFlag, tt.refreshFlag)
 
 			w.Close()
 			os.Stdout = originalStdout
@@ -112,4 +127,31 @@ func TestInitCommand_RunLogic(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestInitCommand_FlagsMutualExclusivity tests that --clean and --refresh are mutually exclusive.
+func TestInitCommand_FlagsMutualExclusivity(t *testing.T) {
+	cmd := NewInitCommand() // This sets up the cobra command with its RunE
+
+	// We need to simulate the RunE part of NewInitCommand as it contains the check.
+	// To do this effectively without calling the full project service, we can temporarily
+	// assign a dummy projectSvc to a temporary cmdRunner inside this test, or
+	// directly test the RunE logic if cobra allows easy invocation of it.
+
+	// For simplicity, let's use executeCommand which will trigger RunE.
+	_, err := executeCommand(cmd, "--clean", "--refresh")
+	if err == nil {
+		t.Errorf("Expected an error when both --clean and --refresh are provided, but got nil")
+	} else {
+		expectedErr := "--clean and --refresh flags are mutually exclusive"
+		if err.Error() != expectedErr {
+			t.Errorf("Expected error message %q, got %q", expectedErr, err.Error())
+		}
+	}
+
+	// Test that it works with only --clean
+	// This will fail if projectSvc is not mocked, as it tries to run the full init.
+	// This test is primarily for the flag parsing logic, not the full command run.
+	// To fully test this, NewInitCommand would need to allow injecting a mock for RunE testing.
+	// For now, this specific test focuses on the RunE check for mutual exclusivity.
 }

@@ -116,7 +116,7 @@ d3 primarily interacts via its MCP server, but retains a few core CLI commands.
 
 | Command                       | Description                                                      |
 |-------------------------------|------------------------------------------------------------------|
-| `d3 init [--clean]`           | Initialize d3 in the current workspace                           |
+| `d3 init [--clean | --refresh]` | Initializes or updates the d3 project. `--clean` removes existing `.d3` and re-initializes. `--refresh` updates configuration in an existing project. |
 | `d3 feature create <name>`    | Create a new feature and set it as the current context           |
 | `d3 feature enter <name>`     | Enter a feature context, resuming its last known phase             |
 | `d3 exit`                     | Exit the current feature context, clearing active feature state. |
@@ -160,7 +160,10 @@ project/
 
 ## 🔄 How It Works
 
-1.  **Initialization**: `d3 init` sets up the `.d3` directory structure, including `project.md` and `tech.md`.
+1.  **Initialization (`d3 init`)**:
+    *   **Standard `d3 init`**: If run in a new project, it creates the `.d3` directory (with `features/`, `project.md`, `tech.md`), ensures `mcp.json` has the d3 server entry (preserving other content if `mcp.json` exists), sets up d3-specific `.gitignore` files, generates base Cursor rules, and clears any active feature session. If run in an already initialized project, it will inform the user that the project is already initialized and suggest using `--refresh` or `--clean`.
+    *   **`d3 init --clean`**: Removes the entire `.d3/` directory if it exists (note: `mcp.json` in the project root is *not* removed). Then, it proceeds with a standard initialization as described above, including clearing any active feature session. This is useful for a fresh start of d3 structures within the project.
+    *   **`d3 init --refresh`**: Updates an existing d3 project. It ensures essential directories (`.d3/`, `.d3/features/`), `mcp.json` entries, and `.gitignore` files are correctly set up or updated. It also refreshes Cursor rules. If the project was not previously initialized, `--refresh` behaves like a standard `d3 init`. This command does not clear the active feature session if the project was already initialized and is being refreshed.
 2.  **Server Start**: `d3 serve` launches the MCP server, listening for client connections.
 3.  **Client Connection**: An AI assistant (like Cursor's) connects to the MCP server.
 4.  **Feature Management**:
