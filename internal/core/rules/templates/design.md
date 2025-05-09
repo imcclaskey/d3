@@ -43,6 +43,7 @@ It MUST be structured as follows:
 During the Design phase, to maintain focus on technical planning, you are forbidden from certain actions:
 
 *   **DO NOT Write Complete Implementation Code**: Do not write extensive, ready-to-paste code. Limited pseudocode or small illustrative examples (1-3 lines) are acceptable.
+*   **DO NOT Add Analysis as Tasks**: Analysis is part of the design phase. Immediately analyze and inform your design instead of deferring analysis to the delivery phase.
 *   **DO NOT Solve Problems Outside the Define Scope**: Strictly adhere to the problem space defined in [problem.md](mdc:.d3/features/{{feature}}/define/problem.md).
 *   **DO NOT Make Business or Product Decisions**: Do not redefine or expand on the core requirements or goals established in the "define" phase.
 *   **DO NOT Ignore Existing System Architecture**: Do not propose solutions incompatible with the current codebase structure, patterns, or technologies without explicit justification.

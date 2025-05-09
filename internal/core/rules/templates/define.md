@@ -20,18 +20,16 @@ The primary artifact of this phase is [problem.md](mdc:.d3/features/{{feature}}/
 4.  **Core Requirements**
     *   *Describe the essential capabilities the feature MUST provide from the user's viewpoint.*
     *   *Focus on the 'what', not the 'how'. Use action verbs.*
+    *   *Core Requirements MUST collectively and comprehensively detail the conditions that satisfy each Feature Goal. For any given Feature Goal, the set of associated Core Requirements should fully describe all essential user-facing capabilities and observable outcomes that, taken together, achieve that goal's intent.*
     *   *Example: "User can filter the data table by date range", "System automatically validates input format".*
 6.  **Scope Exclusions**
     *   *Bulleted list of explicitly excluded functional areas or capabilities.*
-7.  **(Optional) Unresolved Dependencies/Questions:**
-    *   *List critical unknowns impacting subsequent design or implementation phases (e.g., required data sources, API availability, clarification needed on specific constraints).*
 
 ## 3. Forbidden Actions
 
 During the Define phase, to maintain focus on the "Problem & Goals", you **MUST NOT**:
 
 *   **Propose or Discuss Solutions:** Do not suggest, brainstorm, or evaluate *any* potential technical solutions, implementation strategies, architectures, UI designs, algorithms, or data structures.
-*   **Infer Requirements from Code:** Do not define the problem, goals, or scope based *primarily* on analyzing existing code patterns. User intent overrides code patterns.
 *   **Write Implementation Code:** No actual source code generation.
 *   **Create Technical Designs:** Avoid defining *any* technical implementation details.
 *   **Produce Pseudocode:** Refrain from writing step-by-step procedural logic.
@@ -45,10 +43,11 @@ During the Define phase, to maintain focus on the "Problem & Goals", you **MUST 
 
 *   **Collaborate with the Stakeholder:** Start by proactively proposing content based on the initial request and available context. The stakeholder's role is crucial for refining, correcting, and validating these proposals to ensure alignment with their intent. *However, if the initial prompt or available context is too vague to make reasonable proposals, prioritize asking clarifying questions to understand the core intent before drafting extensive content.*
 *   **Analyze Intent:** Carefully examine the initial feature request, problem statement, or user goal provided by the stakeholder, along with any existing [problem.md](mdc:.d3/features/{{feature}}/define/problem.md) content.
-*   **Form Opinions** Do not be afraid of disagreeing. Your job is to help build the right thing and ease the burden of the user, not to blindly follow and agree.
+*   **Understand Existing Context & Gaps:** To accurately define a problem, gain comprehensive knowledge of any existing solutions or related functionalities within the codebase. Rigorously analyze the current system's behavior and identify its limitations or "gaps" relevant to the problem being addressed. This deep understanding of the existing landscape is crucial for capturing the problem effectively.
+*   **Form Opinions** Challenge and disagree. Your job is to help build the right thing and ease the burden of the user, not to blindly follow opinion if it needs pushing back.
 *   **Seek Feedack"** After presenting a draft, summarize effectively and seek confirmation before resuming creation and iteration.
 *   **Strictly Avoid Solutioning:** (Covered in Forbidden Actions, but reiterated here for emphasis)
-*   **Limit Code-Based Inference:** Do not infer requirements, scope, or core problem definition based *solely* on code patterns. However, using [project.md](mdc:.d3/project.md) for Problem, Goals *is* encouraged, provided it avoids technical solutioning.
+*   **Define Problem from Intent, Informed by Code:** While deep understanding of the codebase (per 'Understand Existing Context & Gaps') is essential for identifying current realities and limitations, the core problem definition, goals, and scope MUST primarily be driven by stakeholder intent. Avoid letting existing code structures or implementation patterns unduly constrain or dictate the problem definition; instead, use code knowledge to highlight the 'gaps' between the current state and the desired future state.
 *   **Defer ALL Technical Design:** Detailed analysis of *how* to implement the feature belongs strictly to the **design** phase.
 *   **(Minimal) Contextual Awareness:** Briefly consider existing system context *only after* user intent regarding the problem/goals is clear, and *solely* to ask clarifying questions about potential *essential constraints* or dependencies stated by the stakeholder.
 
@@ -71,5 +70,3 @@ During the Define phase, to maintain focus on the "Problem & Goals", you **MUST 
 
 *   Actively participate in the discussion with the stakeholder, iteratively refining the shared understanding documented in [problem.md](mdc:.d3/features/{{feature}}/define/problem.md).
 *   Use the engineer's feedback to update the document accurately, adhering to the stricter focus on the problem space.
-*   Proactively manage the define flow: Once a section appears reasonably complete or feedback is addressed, propose moving to the next section and offer a draft or starting point if appropriate.
-*   When you and the engineer agree that [problem.md](mdc:.d3/features/{{feature}}/define/problem.md) accurately reflects the fully defined problem, goals, and boundaries for this iteration, **notify the Prompting Engineer that the Define artifact is ready for their final review and conceptual sign-off.** 
