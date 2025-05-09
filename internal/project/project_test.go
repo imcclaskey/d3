@@ -211,13 +211,22 @@ func TestProject_Init(t *testing.T) {
 			name: "refresh on new project",
 			args: args{clean: false, refresh: true},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
-				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
-				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
-				mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(nil).Times(1)
-				mockFeature.EXPECT().ClearActiveFeature().Return(nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1) // Determines originalIsCurrentlyInitialized = false
+				gomock.InOrder(
+					// Standard init steps first
+					mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1),
+					mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1),
+					mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1),
+					mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1),
+
+					// Refresh specific calls
+					mockFeature.EXPECT().GetActiveFeature().Return("", nil).Times(1),
+					mockFeature.EXPECT().GetFeaturePhase(gomock.Any(), "").Return(phase.None, nil).Times(1),
+					mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(nil).Times(1),
+
+					// Conditional call due to !originalIsCurrentlyInitialized
+					mockFeature.EXPECT().ClearActiveFeature().Return(nil).Times(1),
+				)
 			},
 			wantErr:       false,
 			wantResultMsg: "Project initialized successfully (refresh on non-existent project). Cursor rules have been updated.",
@@ -226,15 +235,20 @@ func TestProject_Init(t *testing.T) {
 			name: "refresh on existing project",
 			args: args{clean: false, refresh: true},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
-				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Determines originalIsCurrentlyInitialized = true
 				gomock.InOrder(
+					// Standard init steps first (these still run)
 					mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1),
 					mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1),
-					mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(nil).Times(1),
+
+					// Refresh specific calls -  Order corrected here
+					mockFeature.EXPECT().GetActiveFeature().Return("active-feature", nil).Times(1),
+					mockFeature.EXPECT().GetFeaturePhase(gomock.Any(), "active-feature").Return(phase.Define, nil).Times(1),
+					mockRules.EXPECT().RefreshRules("active-feature", string(phase.Define)).Return(nil).Times(1),
 				)
-				// No mockFeature.ClearActiveFeature() during refresh of an existing project
+				// No mockFeature.ClearActiveFeature() during refresh of an existing project (originalIsCurrentlyInitialized=true, performedClean=false)
 			},
 			wantErr:       false,
 			wantResultMsg: "Project refreshed successfully. Cursor rules have been updated.",
@@ -702,6 +716,7 @@ func TestProject_ExitFeature(t *testing.T) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 				mockFeature.EXPECT().GetActiveFeature().Return("some-active-feature", nil).Times(1)
 				mockFeature.EXPECT().ClearActiveFeature().Return(fmt.Errorf("clear active failed")).Times(1)
+				mockRules.EXPECT().ClearGeneratedRules().Return(nil).AnyTimes() // Added expectation as it's called even if ClearActiveFeature fails
 			},
 			wantErr: true,
 		},

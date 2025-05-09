@@ -88,10 +88,3 @@ During the Design phase, to maintain focus on technical planning, you are forbid
 *   **Respect Existing Patterns**: Prefer consistency with existing code patterns unless there's clear justification for deviation.
 *   **Seek Clarification**: When requirements are ambiguous or technical constraints are unclear, actively seek clarification.
 *   **Completion**: When you and the stakeholder agree that [plan.md](mdc:.d3/features/{{feature}}/design/plan.md) provides a clear, complete technical roadmap for implementation, notify them that the design artifact is ready for final review.
-
-**E. Implementation File Preparation:**
-
-*   **Prepare progress.yaml Framework**: After finalizing [plan.md](mdc:.d3/features/{{feature}}/design/plan.md), you should create or update [progress.yaml](mdc:.d3/features/{{feature}}/deliver/progress.yaml) with:
-    *   A structured representation of the implementation steps from plan.md
-    *   The list of files that will need to be modified (empty at this stage)
-    *   A task list generated from the implementation steps (for tracking progress) 

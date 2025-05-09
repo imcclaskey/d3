@@ -75,7 +75,6 @@ type ProjectService interface {
 	DeleteFeature(ctx context.Context, featureName string) (*Result, error)
 	IsInitialized() bool
 	RequiresInitialized() error
-	// Add other project methods here as they are consumed by CLI/MCP
 }
 
 // State manages the shared state of the project
@@ -85,9 +84,6 @@ type State struct {
 	D3Dir          string
 	FeaturesDir    string
 	CursorRulesDir string
-
-	// Hooks
-	OnStateChanged func()
 }
 
 // Project coordinates all d3 services
@@ -103,7 +99,17 @@ type Project struct {
 // New creates a new project instance from project root, now with dependency injection
 // It no longer performs I/O.
 func New(projectRoot string, fs ports.FileSystem, featureSvc FeatureServicer, rulesSvc RulesServicer, phasesSvc PhaseServicer, fileOp FileOperator) *Project {
-	state := newState(projectRoot)
+	// Inlined logic from newState
+	d3Dir := filepath.Join(projectRoot, ".d3")
+	featuresDir := filepath.Join(d3Dir, "features")
+	cursorRulesDir := filepath.Join(projectRoot, ".cursor", "rules")
+
+	state := &State{
+		ProjectRoot:    projectRoot,
+		D3Dir:          d3Dir,
+		FeaturesDir:    featuresDir,
+		CursorRulesDir: cursorRulesDir,
+	}
 
 	proj := &Project{
 		state:    state,
@@ -114,20 +120,6 @@ func New(projectRoot string, fs ports.FileSystem, featureSvc FeatureServicer, ru
 		fileOp:   fileOp,
 	}
 	return proj
-}
-
-// newState creates a new project state from project root
-func newState(projectRoot string) *State {
-	d3Dir := filepath.Join(projectRoot, ".d3")
-	featuresDir := filepath.Join(d3Dir, "features")
-	cursorRulesDir := filepath.Join(projectRoot, ".cursor", "rules")
-
-	return &State{
-		ProjectRoot:    projectRoot,
-		D3Dir:          d3Dir,
-		FeaturesDir:    featuresDir,
-		CursorRulesDir: cursorRulesDir,
-	}
 }
 
 // checkInitialized checks if the project seems initialized (internal helper)
@@ -150,35 +142,6 @@ func (p *Project) RequiresInitialized() error {
 	}
 	return nil
 }
-
-// --- Internal Helper Functions for Active State ---
-
-func (p *Project) getActiveFeatureName() (string, error) {
-	name, err := p.features.GetActiveFeature()
-	if err != nil {
-		return "", fmt.Errorf("failed to get active feature name: %w", err)
-	}
-	return name, nil
-}
-
-func (p *Project) getActiveFeaturePhase(ctx context.Context) (phase.Phase, error) {
-	activeFeatureName, err := p.getActiveFeatureName()
-	if err != nil {
-		return phase.None, err // Error already wrapped by getActiveFeatureName
-	}
-	if activeFeatureName == "" {
-		return phase.None, nil // No active feature, so no active phase
-	}
-	return p.features.GetFeaturePhase(ctx, activeFeatureName)
-}
-
-// getFeaturePhase is a direct pass-through, but useful for consistency if ever needed.
-// For now, direct calls to p.features.GetFeaturePhase might be clearer where featureName is explicit.
-// func (p *Project) getFeaturePhase(ctx context.Context, featureName string) (phase.Phase, error) {
-// 	return p.features.GetFeaturePhase(ctx, featureName)
-// }
-
-// --- Modified Project Methods ---
 
 // Init initializes or refreshes the project
 func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
@@ -223,8 +186,19 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 		return nil, fmt.Errorf("failed to update d3-specific .gitignore files: %w", err)
 	}
 
-	// Initialize/Refresh rules with no active feature/phase context
-	if err := p.rules.RefreshRules("", string(phase.None)); err != nil {
+	featureName := ""
+	phase := phase.None
+	if refresh {
+		featureName, err = p.features.GetActiveFeature()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get active feature name: %w", err)
+		}
+		phase, err = p.features.GetFeaturePhase(context.Background(), featureName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get active feature phase: %w", err)
+		}
+	}
+	if err := p.rules.RefreshRules(featureName, string(phase)); err != nil {
 		return nil, fmt.Errorf("failed to initialize/refresh rules: %w", err)
 	}
 
@@ -232,15 +206,6 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 		if err := p.features.ClearActiveFeature(); err != nil {
 			return nil, fmt.Errorf("failed to initialize/clear active feature: %w", err)
 		}
-	}
-
-	// p.state.CurrentFeature = "" // Removed
-	// p.state.CurrentPhase = phase.None // Removed
-
-	// OnStateChanged hook is typically called by methods that change feature/phase context.
-	// Init effectively sets it to none, so a call here might be relevant if the hook is used broadly.
-	if p.state.OnStateChanged != nil {
-		p.state.OnStateChanged()
 	}
 
 	return NewResultWithRulesChanged(actionMessage), nil
@@ -252,7 +217,7 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 		return nil, err
 	}
 
-	featureInfo, err := p.features.CreateFeature(ctx, featureName) // This now creates .phase with default Define
+	featureInfo, err := p.features.CreateFeature(ctx, featureName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create feature using service: %w", err)
 	}
@@ -267,16 +232,9 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 		fmt.Fprintf(os.Stderr, "warning: failed to ensure phase files for %s: %v\n", featureName, err)
 	}
 
-	// p.state.CurrentFeature = featureName // Removed
-	// p.state.CurrentPhase = phase.Define // Removed
-
 	// Refresh rules with the new feature and its initial phase (Define)
 	if err := p.rules.RefreshRules(featureName, string(phase.Define)); err != nil {
 		return nil, fmt.Errorf("failed to refresh rules for new feature %s: %w", featureName, err)
-	}
-
-	if p.state.OnStateChanged != nil {
-		p.state.OnStateChanged()
 	}
 
 	return NewResultWithRulesChanged(fmt.Sprintf("Feature '%s' created and set to define phase.", featureName)), nil
@@ -288,7 +246,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase phase.Phase) (*Re
 		return nil, err
 	}
 
-	currentFeatureName, err := p.getActiveFeatureName()
+	currentFeatureName, err := p.features.GetActiveFeature()
 	if err != nil {
 		return nil, err // Error already wrapped
 	}
@@ -309,8 +267,6 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase phase.Phase) (*Re
 		return nil, fmt.Errorf("failed to set feature phase for %s: %w", currentFeatureName, err)
 	}
 
-	// p.state.CurrentPhase = targetPhase // Removed
-
 	if err := p.rules.RefreshRules(currentFeatureName, string(targetPhase)); err != nil {
 		return nil, fmt.Errorf("failed to refresh rules after phase change: %w", err)
 	}
@@ -318,10 +274,6 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase phase.Phase) (*Re
 	featureDirForPhaseFiles := filepath.Join(p.state.FeaturesDir, currentFeatureName)
 	if err := p.phases.EnsurePhaseFiles(featureDirForPhaseFiles); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: failed to ensure phase files for %s: %v\n", currentFeatureName, err)
-	}
-
-	if p.state.OnStateChanged != nil {
-		p.state.OnStateChanged()
 	}
 
 	hasImpact := false
@@ -357,15 +309,8 @@ func (p *Project) EnterFeature(ctx context.Context, featureName string) (*Result
 		return nil, fmt.Errorf("failed to set active feature %s: %w", featureName, err)
 	}
 
-	// p.state.CurrentFeature = featureName // Removed
-	// p.state.CurrentPhase = retrievedPhase // Removed
-
 	if err := p.rules.RefreshRules(featureName, string(retrievedPhase)); err != nil {
 		return nil, fmt.Errorf("failed to refresh rules for feature '%s': %w", featureName, err)
-	}
-
-	if p.state.OnStateChanged != nil {
-		p.state.OnStateChanged()
 	}
 
 	message := fmt.Sprintf("Entered feature '%s' in phase '%s'.", featureName, retrievedPhase)
@@ -378,38 +323,26 @@ func (p *Project) ExitFeature(ctx context.Context) (*Result, error) {
 		return nil, err
 	}
 
-	exitedFeatureName, err := p.getActiveFeatureName()
+	exitedFeatureName, err := p.features.GetActiveFeature()
 	if err != nil {
-		// Log the error from getActiveFeatureName, but proceed as if no feature was active if name is empty.
 		fmt.Fprintf(os.Stderr, "warning: error determining active feature during exit: %v\n", err)
-		// If getActiveFeatureName itself had an issue (not just file not found), exitedFeatureName might be empty.
 	}
 
-	if exitedFeatureName == "" { // No active feature to exit
-		// Ensure rules are cleared anyway (best effort)
+	if exitedFeatureName == "" {
 		if ruleErr := p.rules.ClearGeneratedRules(); ruleErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: failed to clear rules during exit (no active feature): %v\n", ruleErr)
 		}
-		// OnStateChanged hook could be called here if exiting from "no feature" has meaning
-		if p.state.OnStateChanged != nil {
-			p.state.OnStateChanged()
-		}
-		return NewResultWithRulesChanged("No active feature to exit. Cursor rules cleared."), nil // Rules are cleared so RulesChanged is true.
+		return NewResultWithRulesChanged("No active feature to exit. Cursor rules cleared."), nil
 	}
 
-	if err := p.features.ClearActiveFeature(); err != nil {
-		return nil, fmt.Errorf("failed to clear active feature: %w", err)
+	errClearActive := p.features.ClearActiveFeature()
+
+	if errRules := p.rules.ClearGeneratedRules(); errRules != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to clear rules during exit: %v\n", errRules)
 	}
 
-	// p.state.CurrentFeature = "" // Removed
-	// p.state.CurrentPhase = phase.None // Removed
-
-	if err := p.rules.ClearGeneratedRules(); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: failed to clear rules during exit: %v\n", err)
-	}
-
-	if p.state.OnStateChanged != nil {
-		p.state.OnStateChanged()
+	if errClearActive != nil {
+		return nil, fmt.Errorf("failed to clear active feature: %w", errClearActive)
 	}
 
 	return NewResultWithRulesChanged(fmt.Sprintf("Exited feature '%s'. No active feature. Cursor rules cleared.", exitedFeatureName)), nil
@@ -422,8 +355,6 @@ func (p *Project) DeleteFeature(ctx context.Context, featureName string) (*Resul
 		return nil, err
 	}
 
-	// features.DeleteFeature now handles clearing of .feature file internally
-	// and returns a boolean indicating if the active context was indeed cleared.
 	activeContextCleared, err := p.features.DeleteFeature(ctx, featureName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to delete feature '%s' using service: %w", featureName, err)
@@ -433,23 +364,14 @@ func (p *Project) DeleteFeature(ctx context.Context, featureName string) (*Resul
 	rulesWereImpacted := false
 
 	if activeContextCleared {
-		// p.state.CurrentFeature = "" // Removed
-		// p.state.CurrentPhase = phase.None // Removed
-
 		if err := p.rules.ClearGeneratedRules(); err != nil {
-			// Append warning to message but don't fail the whole operation
 			message += fmt.Sprintf(" Warning: failed to clear rules after deleting active feature: %v", err)
 		} else {
-			rulesWereImpacted = true // Rules were cleared
+			rulesWereImpacted = true
 		}
 		message += " Active feature context has been cleared."
-		// OnStateChanged would be relevant here as context changed significantly
-		if p.state.OnStateChanged != nil {
-			p.state.OnStateChanged()
-		}
 	}
 
-	// If rules were impacted (cleared), return ResultWithRulesChanged
 	if rulesWereImpacted {
 		return NewResultWithRulesChanged(message), nil
 	}
