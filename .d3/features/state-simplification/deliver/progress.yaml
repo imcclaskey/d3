@@ -1,0 +1,119 @@
+description: Progress tracking for State Simplification feature.
+
+# Files to be modified during this feature delivery.
+# Add paths relative to the project root.
+files_modified:
+  - internal/core/feature/feature.go
+  - internal/core/feature/feature_test.go
+  - internal/project/project.go
+  - internal/project/project_test.go
+  - internal/core/projectfiles/operations.go
+  - internal/core/projectfiles/operations_test.go
+
+# Tasks derived from the delivery steps in plan.md
+tasks:
+  - id: p1_s1_feature_service_mods
+    description: "[code] Modify FeatureServicer (internal/core/feature/feature.go) for .phase and .feature files."
+    status: complete
+    type: code
+    details:
+      - "Update CreateFeature for .phase file"
+      - "Implement GetFeaturePhase"
+      - "Implement SetFeaturePhase"
+      - "Update DeleteFeature for .phase file"
+      - "Remove state.yaml logic"
+      - "Implement SetActiveFeature for .d3/.feature"
+      - "Implement GetActiveFeature from .d3/.feature"
+      - "Implement ClearActiveFeature for .d3/.feature"
+  - id: p1_s2_feature_service_tests
+    description: "[code] Add/Update unit tests for FeatureServicer."
+    status: complete
+    type: code
+  - id: p1_s3_feature_service_run_tests
+    description: "[test] Run all unit tests for internal/core/feature/."
+    status: complete
+    type: test
+  - id: p1_s4_feature_service_commit
+    description: "[commit] Commit changes for 'Refactor FeatureService for .phase and .feature files'."
+    status: complete
+    type: commit
+
+  - id: p2_s1_project_service_mods
+    description: "[code] Modify ProjectService (internal/project/project.go) to remove in-memory state."
+    status: complete
+    type: code
+    details:
+      - "Remove CurrentFeature/CurrentPhase from State struct"
+      - "Create getActiveFeatureName helper"
+      - "Create getActiveFeaturePhase helper"
+      - "Create getFeaturePhase helper"
+      - "Update Init method"
+      - "Update CreateFeature method"
+      - "Update ChangePhase method"
+      - "Update EnterFeature method"
+      - "Update ExitFeature method"
+      - "Update DeleteFeature method"
+  - id: p2_s2_project_service_tests
+    description: "[code] Add/Update unit tests for ProjectService."
+    status: complete
+    type: code
+  - id: p2_s3_project_service_run_tests
+    description: "[test] Run all unit tests for internal/project/."
+    status: complete
+    type: test
+  - id: p2_s4_project_service_commit
+    description: "[commit] Commit changes for 'Refactor ProjectService to remove in-memory state'."
+    status: complete
+    type: commit
+
+  - id: p3_s1_rules_service_review
+    description: "[code] Review RulesServicer (internal/core/rules/rules.go) for correct context usage."
+    status: complete
+    type: code
+  - id: p3_s2_gitignore_update
+    description: "[code] Update .d3/.gitignore (or main .gitignore)."
+    status: complete
+    type: code
+    details:
+      - "Add /.feature"
+      - "Add features/*/.phase"
+  - id: p3_s3_gitignore_verify
+    description: "[verify] Manually check gitignore for .feature and .phase files."
+    status: complete
+    type: verify
+  - id: p3_s4_cli_tests_update
+    description: "[code] Update relevant CLI command tests (cmd/) for new state mechanism."
+    status: complete
+    type: code
+  - id: p3_s5_integration_tests
+    description: "[test] Run full integration test suite."
+    status: complete
+    type: test
+  - id: p3_s6_rules_commit
+    description: "[commit] Commit changes for 'Integrate RulesService, update gitignore, and finalize tests'."
+    status: complete
+    type: commit
+
+  - id: p4_s1_state_yaml_search_remove
+    description: "[code] Globally search codebase for any remaining direct use of state.yaml for phase info and remove/refactor."
+    status: complete
+    type: code
+  - id: p4_s2_remove_old_state_yaml_files
+    description: "[code] Remove old state.yaml files from .d3/features/."
+    status: complete
+    type: code
+  - id: p4_s3_cli_flow_verify
+    description: "[verify] Manually test key CLI flows."
+    status: complete # User has verified or indicated to proceed
+    type: verify
+    details:
+      - "d3 init"
+      - "d3 feature create test-feat"
+      - "d3 phase move design"
+      - "d3 feature enter other-feat"
+      - "d3 feature exit"
+      - "d3 feature delete test-feat"
+  - id: p4_s4_final_commit
+    description: "[commit] Commit 'Final cleanup and verification of state simplification'."
+    status: pending
+    type: commit
