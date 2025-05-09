@@ -2,7 +2,9 @@
   "mcpServers": {
     "d3": {
       "command": "d3",
-      "args": ["serve --workdir /Users/imcclaskey/Developer/repos/d3"]
+      "args": [
+        "serve --workdir /Users/imcclaskey/Developer/repos/d3"
+      ]
     }
   }
-} 
+}

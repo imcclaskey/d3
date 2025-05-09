@@ -49,7 +49,8 @@ func NewDefaultFileOperator() *DefaultFileOperator {
 // It ensures the 'd3' server entry has the correct command and workdir.
 // It always attempts to preserve other entries if mcp.json exists and is valid.
 func (op *DefaultFileOperator) EnsureMCPJSON(fs ports.FileSystem, projectRoot string) error {
-	mcpPath := filepath.Join(projectRoot, "mcp.json")
+	mcpPath := filepath.Join(projectRoot, ".cursor", "mcp.json")
+
 	rootConfig := MCPRootConfig{
 		MCPServers: make(MCPServersMap),
 	}

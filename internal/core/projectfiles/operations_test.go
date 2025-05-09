@@ -100,6 +100,16 @@ func TestEnsureMCPJSON(t *testing.T) {
 			readFileErr: errors.New("permission denied"),
 			expectErr:   true,
 		},
+		// Scenario 6: .cursor directory does not exist - EnsureMCPJSON should attempt write and fail
+		{
+			name:        "error if .cursor directory does not exist",
+			projectRoot: "/testroot_no_cursor_dir",
+			readFileErr: os.ErrNotExist, // ReadFile will indicate mcp.json doesn't exist
+			// EnsureMCPJSON will proceed to try and write. This write should fail because .cursor doesn't exist.
+			writeFileErr: errors.New("simulated WriteFile error: dir does not exist"),
+			expectErr:    true, // The overall function should return this error
+			// No expectedMCPConfig as the write fails
+		},
 	}
 
 	for _, tt := range tests {
@@ -107,21 +117,25 @@ func TestEnsureMCPJSON(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockFS := portsmocks.NewMockFileSystem(ctrl)
 
-			mcpPath := filepath.Join(tt.projectRoot, "mcp.json")
-			var capturedConfigForTest *MCPRootConfig // Variable to store the config captured from WriteFile
+			mcpPath := filepath.Join(tt.projectRoot, ".cursor", "mcp.json")
+			// mcpDir := filepath.Dir(mcpPath) // Not strictly needed here if MkdirAll is removed from main code for this path
+			var capturedConfigForTest *MCPRootConfig
 
-			// EnsureMCPJSON now always tries to read the file.
-			// Set up the ReadFile mock based on test case specifics.
 			readFileContent := tt.initialMCPContent
 			readFileError := tt.readFileErr
 			if readFileContent == nil && readFileError == nil {
-				// If not specified, default to os.ErrNotExist for ReadFile mock
 				readFileError = os.ErrNotExist
 			}
 			mockFS.EXPECT().ReadFile(mcpPath).
 				Return(readFileContent, readFileError).MaxTimes(1)
 
+			// WriteFile should only be expected if we don't expect an error from EnsureMCPJSON,
+			// or if the expected error is specifically from the WriteFile operation itself.
 			if !tt.expectErr || tt.writeFileErr != nil {
+				// If MkdirAll was part of the non-error path, it would be expected here.
+				// e.g., mockFS.EXPECT().MkdirAll(mcpDir, os.FileMode(0755)).Return(nil).MaxTimes(1)
+				// However, with the latest change, EnsureMCPJSON does not call MkdirAll for mcpPath.
+
 				mockFS.EXPECT().WriteFile(mcpPath, gomock.Any(), os.FileMode(0644)).
 					DoAndReturn(func(_ string, data []byte, _ os.FileMode) error {
 						if tt.writeFileErr == nil { // If WriteFile itself is not mocked to error
