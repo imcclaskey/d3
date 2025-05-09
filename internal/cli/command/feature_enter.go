@@ -12,7 +12,6 @@ import (
 	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/projectfiles"
 	"github.com/imcclaskey/d3/internal/core/rules"
-	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/project"
 )
 
@@ -39,14 +38,13 @@ func NewFeatureEnterCommand() *cobra.Command {
 			cfg := NewConfig(projectRoot)
 
 			fs := ports.RealFileSystem{}
-			sessionSvc := session.NewStorage(cfg.D3Dir, fs)
 			featureSvc := feature.NewService(cfg.WorkspaceRoot, cfg.FeaturesDir, cfg.D3Dir, fs)
 			ruleGenerator := rules.NewRuleGenerator()
 			ruleSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
 			phaseSvc := phase.NewService(fs)
 			fileOp := projectfiles.NewDefaultFileOperator()
 
-			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, sessionSvc, featureSvc, ruleSvc, phaseSvc, fileOp)
+			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, featureSvc, ruleSvc, phaseSvc, fileOp)
 
 			return cmdRunner.run(context.Background())
 		},

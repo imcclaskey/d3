@@ -11,7 +11,6 @@ import (
 	"github.com/imcclaskey/d3/internal/core/ports"
 	"github.com/imcclaskey/d3/internal/core/projectfiles"
 	"github.com/imcclaskey/d3/internal/core/rules"
-	"github.com/imcclaskey/d3/internal/core/session"
 	"github.com/imcclaskey/d3/internal/mcp/tools"
 	"github.com/imcclaskey/d3/internal/project"
 	"github.com/imcclaskey/d3/internal/version"
@@ -26,7 +25,7 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 	featuresDir := filepath.Join(d3Dir, "features")
 	cursorRulesDir := filepath.Join(workspaceRoot, ".cursor", "rules")
 
-	sessionSvc := session.NewStorage(d3Dir, fs)
+	// sessionSvc := session.NewStorage(fs) // REMOVED: session.Storage and NewStorage removed
 	featureSvc := feature.NewService(workspaceRoot, featuresDir, d3Dir, fs)
 	ruleGenerator := rules.NewRuleGenerator()
 	rulesSvc := rules.NewService(workspaceRoot, cursorRulesDir, ruleGenerator, fs)
@@ -34,7 +33,7 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 	fileOp := projectfiles.NewDefaultFileOperator()
 
 	// Initialize real project instance. It implements ProjectService.
-	proj := project.New(workspaceRoot, fs, sessionSvc, featureSvc, rulesSvc, phaseSvc, fileOp)
+	proj := project.New(workspaceRoot, fs /*sessionSvc,*/, featureSvc, rulesSvc, phaseSvc, fileOp) // REMOVED sessionSvc argument
 
 	// Create MCP server
 	mcpServer := server.NewMCPServer(

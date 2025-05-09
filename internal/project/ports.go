@@ -4,24 +4,25 @@ import (
 	"context"
 
 	"github.com/imcclaskey/d3/internal/core/feature"
+	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
-	"github.com/imcclaskey/d3/internal/core/session"
+	// "github.com/imcclaskey/d3/internal/core/session"
 )
 
-//go:generate mockgen -package=project -destination=interfaces_mock.go . StorageService,FeatureServicer,RulesServicer,PhaseServicer,FileOperator
-
-// StorageService defines the interface for session storage operations.
-type StorageService interface {
-	LoadActiveFeature() (string, error)
-	SaveActiveFeature(featureName string) error
-	ClearActiveFeature() error
-}
+//go:generate mockgen -package=project -destination=interfaces_mock.go . FeatureServicer,RulesServicer,PhaseServicer,FileOperator
 
 // FeatureServicer defines the interface for feature management operations.
 type FeatureServicer interface {
 	CreateFeature(ctx context.Context, featureName string) (*feature.FeatureInfo, error)
-	GetFeaturePhase(ctx context.Context, featureName string) (session.Phase, error)
-	SetFeaturePhase(ctx context.Context, featureName string, phase session.Phase) error
+	GetFeaturePhase(ctx context.Context, featureName string) (phase.Phase, error)
+	SetFeaturePhase(ctx context.Context, featureName string, p phase.Phase) error
+	FeatureExists(featureName string) bool
+	GetFeaturePath(featureName string) string
+	ListFeatures(ctx context.Context) ([]feature.FeatureInfo, error)
+	DeleteFeature(ctx context.Context, featureName string) (activeContextCleared bool, err error)
+	GetActiveFeature() (string, error)
+	SetActiveFeature(featureName string) error
+	ClearActiveFeature() error
 }
 
 // RulesServicer defines the interface for rule management operations.

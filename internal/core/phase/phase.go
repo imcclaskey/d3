@@ -13,6 +13,7 @@ import (
 type Phase string
 
 const (
+	None    Phase = ""
 	Define  Phase = "define"
 	Design  Phase = "design"
 	Deliver Phase = "deliver"

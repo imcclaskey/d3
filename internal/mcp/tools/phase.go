@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/imcclaskey/d3/internal/core/session"
+	corephase "github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/project"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -33,7 +33,7 @@ func HandleMove(proj project.ProjectService) server.ToolHandlerFunc {
 		}
 
 		// Parse the phase string to a Phase enum
-		targetPhase, err := session.ParsePhase(targetPhaseStr)
+		targetPhase, err := parsePhaseString(targetPhaseStr)
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Invalid phase '%s': %v", targetPhaseStr, err)), nil
 		}
@@ -52,5 +52,19 @@ func HandleMove(proj project.ProjectService) server.ToolHandlerFunc {
 
 		// Return the formatted result
 		return mcp.NewToolResultText(result.FormatMCP()), nil
+	}
+}
+
+// parsePhaseString converts a string to a phase.Phase type.
+func parsePhaseString(phaseStr string) (corephase.Phase, error) {
+	switch phaseStr {
+	case string(corephase.Define):
+		return corephase.Define, nil
+	case string(corephase.Design):
+		return corephase.Design, nil
+	case string(corephase.Deliver):
+		return corephase.Deliver, nil
+	default:
+		return corephase.None, fmt.Errorf("invalid phase: %s", phaseStr)
 	}
 }

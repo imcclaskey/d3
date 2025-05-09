@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/imcclaskey/d3/internal/core/session"
+	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/project"
 	"github.com/imcclaskey/d3/internal/testutil"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -28,7 +28,7 @@ func TestHandleMove(t *testing.T) {
 			toolNameForReq: "d3_phase_move",
 			params:         map[string]interface{}{"to": "design"},
 			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().ChangePhase(gomock.Any(), session.Design).
+				mockProj.EXPECT().ChangePhase(gomock.Any(), phase.Design).
 					Return(project.NewResult("Moved to design phase."), nil).Times(1)
 			},
 			wantResultText: "Moved to design phase.",
@@ -57,7 +57,7 @@ func TestHandleMove(t *testing.T) {
 			toolNameForReq: "d3_phase_move",
 			params:         map[string]interface{}{"to": "define"},
 			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().ChangePhase(gomock.Any(), session.Define).
+				mockProj.EXPECT().ChangePhase(gomock.Any(), phase.Define).
 					Return(nil, project.ErrNoActiveFeature).Times(1)
 			},
 			wantResultText: "Cannot move phase: no active feature",
@@ -68,7 +68,7 @@ func TestHandleMove(t *testing.T) {
 			toolNameForReq: "d3_phase_move",
 			params:         map[string]interface{}{"to": "design"},
 			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().ChangePhase(gomock.Any(), session.Design).
+				mockProj.EXPECT().ChangePhase(gomock.Any(), phase.Design).
 					Return(nil, project.ErrNotInitialized).Times(1)
 			},
 			wantResultText: "Cannot move phase: project not initialized",
@@ -79,7 +79,7 @@ func TestHandleMove(t *testing.T) {
 			toolNameForReq: "d3_phase_move",
 			params:         map[string]interface{}{"to": "deliver"},
 			setupMockProj: func(mockProj *project.MockProjectService) {
-				mockProj.EXPECT().ChangePhase(gomock.Any(), session.Deliver).
+				mockProj.EXPECT().ChangePhase(gomock.Any(), phase.Deliver).
 					Return(nil, fmt.Errorf("random failure")).Times(1)
 			},
 			wantResultText: "Failed to change phase: random failure",
@@ -578,6 +578,144 @@ func TestHandleFeatureExit(t *testing.T) {
 				}
 			} else if tt.wantResultText != "" {
 				t.Errorf("HandleFeatureExit() result has no content, want text %q", tt.wantResultText)
+			}
+		})
+	}
+}
+
+func TestHandleFeatureDelete(t *testing.T) {
+	ctx := context.Background()
+	tests := []struct {
+		name           string
+		params         map[string]interface{}
+		setupMockProj  func(mockProj *project.MockProjectService)
+		wantResultText string
+		wantIsErrorSet bool
+		wantHandlerErr bool // if the handler itself returns an error, not just result.IsError
+	}{
+		{
+			name:   "successful feature deletion",
+			params: map[string]interface{}{"feature_name": "test-feature-to-delete", "confirm": true},
+			setupMockProj: func(mockProj *project.MockProjectService) {
+				mockProj.EXPECT().DeleteFeature(ctx, "test-feature-to-delete").
+					Return(project.NewResult("Feature 'test-feature-to-delete' deleted successfully."), nil).Times(1)
+			},
+			wantResultText: "Feature 'test-feature-to-delete' deleted successfully.",
+			wantIsErrorSet: false,
+		},
+		{
+			name:   "successful deletion of active feature with rules changed",
+			params: map[string]interface{}{"feature_name": "active-feature-deleted", "confirm": true},
+			setupMockProj: func(mockProj *project.MockProjectService) {
+				mockProj.EXPECT().DeleteFeature(ctx, "active-feature-deleted").
+					Return(project.NewResultWithRulesChanged("Feature 'active-feature-deleted' deleted successfully. Active feature context has been cleared."), nil).Times(1)
+			},
+			wantResultText: "Feature 'active-feature-deleted' deleted successfully. Active feature context has been cleared. Cursor rules have changed. Stop your current behavior and await further instruction.",
+			wantIsErrorSet: false,
+		},
+		{
+			name:   "deletion requires confirmation (confirm missing)",
+			params: map[string]interface{}{"feature_name": "test-feature-confirm-missing"},
+			setupMockProj: func(mockProj *project.MockProjectService) {
+				// DeleteFeature should not be called
+			},
+			wantResultText: "Are you sure you want to delete feature 'test-feature-confirm-missing'? This action cannot be undone. Please call again with confirm=true.",
+			wantIsErrorSet: true,
+		},
+		{
+			name:   "deletion requires confirmation (confirm false)",
+			params: map[string]interface{}{"feature_name": "test-feature-confirm-false", "confirm": false},
+			setupMockProj: func(mockProj *project.MockProjectService) {
+				// DeleteFeature should not be called
+			},
+			wantResultText: "Are you sure you want to delete feature 'test-feature-confirm-false'? This action cannot be undone. Please call again with confirm=true.",
+			wantIsErrorSet: true,
+		},
+		{
+			name:           "missing feature_name parameter",
+			params:         map[string]interface{}{"confirm": true},
+			setupMockProj:  func(mockProj *project.MockProjectService) { /* No call expected */ },
+			wantResultText: "Feature name 'feature_name' is required",
+			wantIsErrorSet: true,
+		},
+		{
+			name:           "empty feature_name parameter",
+			params:         map[string]interface{}{"feature_name": "", "confirm": true},
+			setupMockProj:  func(mockProj *project.MockProjectService) { /* No call expected */ },
+			wantResultText: "Feature name 'feature_name' is required",
+			wantIsErrorSet: true,
+		},
+		{
+			name:   "project not initialized",
+			params: map[string]interface{}{"feature_name": "any-feature", "confirm": true},
+			setupMockProj: func(mockProj *project.MockProjectService) {
+				mockProj.EXPECT().DeleteFeature(ctx, "any-feature").
+					Return(nil, project.ErrNotInitialized).Times(1)
+			},
+			wantResultText: "Cannot delete feature: project not initialized",
+			wantIsErrorSet: true,
+		},
+		{
+			name:   "project service returns error (e.g., feature not found)",
+			params: map[string]interface{}{"feature_name": "non-existent-feature", "confirm": true},
+			setupMockProj: func(mockProj *project.MockProjectService) {
+				mockProj.EXPECT().DeleteFeature(ctx, "non-existent-feature").
+					Return(nil, fmt.Errorf("feature '%s' not found", "non-existent-feature")).Times(1)
+			},
+			wantResultText: "System error deleting feature 'non-existent-feature': feature 'non-existent-feature' not found",
+			wantIsErrorSet: true,
+		},
+		{
+			name:           "project service is nil",
+			params:         map[string]interface{}{"feature_name": "any-feature", "confirm": true},
+			setupMockProj:  nil,
+			wantResultText: "Internal error: Project context is nil",
+			wantIsErrorSet: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockProjSvc := project.NewMockProjectService(ctrl)
+
+			var handler server.ToolHandlerFunc
+			if tt.setupMockProj == nil {
+				handler = HandleFeatureDelete(nil)
+			} else {
+				tt.setupMockProj(mockProjSvc)
+				handler = HandleFeatureDelete(mockProjSvc)
+			}
+
+			request := testutil.NewTestCallToolRequest("d3_feature_delete", tt.params)
+			result, err := handler(ctx, request)
+
+			if (err != nil) != tt.wantHandlerErr {
+				t.Errorf("HandleFeatureDelete() handler error = %v, wantHandlerErr %v", err, tt.wantHandlerErr)
+			}
+
+			if result == nil {
+				if !tt.wantHandlerErr {
+					t.Fatal("HandleFeatureDelete() result is nil when no handler error was expected")
+				}
+				return
+			}
+
+			if result.IsError != tt.wantIsErrorSet {
+				t.Errorf("HandleFeatureDelete() result.IsError = %v, wantIsErrorSet %v. Result: %+v", result.IsError, tt.wantIsErrorSet, result)
+			}
+
+			if len(result.Content) == 1 {
+				contentItem := result.Content[0]
+				if textContent, ok := contentItem.(mcp.TextContent); ok {
+					if textContent.Text != tt.wantResultText {
+						t.Errorf("HandleFeatureDelete() result text = %q, want %q", textContent.Text, tt.wantResultText)
+					}
+				} else {
+					t.Errorf("HandleFeatureDelete() result content is not mcp.TextContent, got %T", contentItem)
+				}
+			} else if tt.wantResultText != "" {
+				t.Errorf("HandleFeatureDelete() result has %d content items, want 1 for text %q. Full result: %+v", len(result.Content), tt.wantResultText, result)
 			}
 		})
 	}

@@ -39,6 +39,7 @@ func (c *CLI) InitCommands() {
 	featureCmd := command.NewFeatureCommand()
 	featureCmd.AddCommand(command.NewFeatureCreateCommand()) // Add create as a subcommand of feature
 	featureCmd.AddCommand(command.NewFeatureEnterCommand())  // Add enter as a subcommand of feature
+	featureCmd.AddCommand(command.NewFeatureDeleteCommand()) // Add delete as a subcommand of feature
 	// Future: featureCmd.AddCommand(command.NewFeatureExitCommand()) // Exit added as top-level below
 	c.rootCmd.AddCommand(featureCmd)
 

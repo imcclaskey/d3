@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	session "github.com/imcclaskey/d3/internal/core/session"
+	phase "github.com/imcclaskey/d3/internal/core/phase"
 )
 
 // MockProjectService is a mock of ProjectService interface.
@@ -36,7 +36,7 @@ func (m *MockProjectService) EXPECT() *MockProjectServiceMockRecorder {
 }
 
 // ChangePhase mocks base method.
-func (m *MockProjectService) ChangePhase(arg0 context.Context, arg1 session.Phase) (*Result, error) {
+func (m *MockProjectService) ChangePhase(arg0 context.Context, arg1 phase.Phase) (*Result, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ChangePhase", arg0, arg1)
 	ret0, _ := ret[0].(*Result)
@@ -63,6 +63,21 @@ func (m *MockProjectService) CreateFeature(arg0 context.Context, arg1 string) (*
 func (mr *MockProjectServiceMockRecorder) CreateFeature(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateFeature", reflect.TypeOf((*MockProjectService)(nil).CreateFeature), arg0, arg1)
+}
+
+// DeleteFeature mocks base method.
+func (m *MockProjectService) DeleteFeature(arg0 context.Context, arg1 string) (*Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteFeature", arg0, arg1)
+	ret0, _ := ret[0].(*Result)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteFeature indicates an expected call of DeleteFeature.
+func (mr *MockProjectServiceMockRecorder) DeleteFeature(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFeature", reflect.TypeOf((*MockProjectService)(nil).DeleteFeature), arg0, arg1)
 }
 
 // EnterFeature mocks base method.

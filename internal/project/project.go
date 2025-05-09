@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/imcclaskey/d3/internal/core/phase"
 	"github.com/imcclaskey/d3/internal/core/ports"
-	"github.com/imcclaskey/d3/internal/core/session"
 )
 
 // Common error definitions
@@ -69,9 +69,10 @@ func (r *Result) FormatMCP() string {
 type ProjectService interface {
 	Init(clean bool, refresh bool) (*Result, error)
 	CreateFeature(ctx context.Context, featureName string) (*Result, error)
-	ChangePhase(ctx context.Context, targetPhase session.Phase) (*Result, error)
+	ChangePhase(ctx context.Context, targetPhase phase.Phase) (*Result, error)
 	EnterFeature(ctx context.Context, featureName string) (*Result, error)
 	ExitFeature(ctx context.Context) (*Result, error)
+	DeleteFeature(ctx context.Context, featureName string) (*Result, error)
 	IsInitialized() bool
 	RequiresInitialized() error
 	// Add other project methods here as they are consumed by CLI/MCP
@@ -87,7 +88,7 @@ type State struct {
 
 	// Active context
 	CurrentFeature string
-	CurrentPhase   session.Phase
+	CurrentPhase   phase.Phase
 
 	// Hooks
 	OnStateChanged func()
@@ -97,7 +98,6 @@ type State struct {
 type Project struct {
 	state    *State
 	features FeatureServicer
-	session  StorageService
 	rules    RulesServicer
 	phases   PhaseServicer
 	fs       ports.FileSystem
@@ -106,12 +106,11 @@ type Project struct {
 
 // New creates a new project instance from project root, now with dependency injection
 // It no longer performs I/O.
-func New(projectRoot string, fs ports.FileSystem, sessionSvc StorageService, featureSvc FeatureServicer, rulesSvc RulesServicer, phasesSvc PhaseServicer, fileOp FileOperator) *Project {
+func New(projectRoot string, fs ports.FileSystem, featureSvc FeatureServicer, rulesSvc RulesServicer, phasesSvc PhaseServicer, fileOp FileOperator) *Project {
 	state := newState(projectRoot)
 
 	proj := &Project{
 		state:    state,
-		session:  sessionSvc,
 		rules:    rulesSvc,
 		phases:   phasesSvc,
 		features: featureSvc,
@@ -168,15 +167,7 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 			if err := p.fs.RemoveAll(p.state.D3Dir); err != nil {
 				return nil, fmt.Errorf("failed to clean existing .d3 directory: %w", err)
 			}
-			// mcp.json is no longer removed during clean.
-			// _ = filepath.Join(p.state.ProjectRoot, "mcp.json") // mcpPath
-			// if _, statErr := p.fs.Stat(mcpPath); statErr == nil {
-			// 	if err := p.fs.Remove(mcpPath); err != nil {
-			// 		fmt.Fprintf(os.Stderr, "warning: failed to remove mcp.json during clean: %v\n", err)
-			// 	}
-			// }
-			// Clear active feature from session storage as part of clean
-			if err := p.session.ClearActiveFeature(); err != nil {
+			if err := p.features.ClearActiveFeature(); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: failed to clear transient session during clean init: %v\n", err)
 			}
 		}
@@ -227,7 +218,7 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 	// A fresh start means it was cleaned, or it was not originally initialized.
 	// Do not clear active feature during a refresh of an already initialized project.
 	if performedClean || !originalIsCurrentlyInitialized {
-		if err := p.session.ClearActiveFeature(); err != nil {
+		if err := p.features.ClearActiveFeature(); err != nil {
 			// This might be an error if the session store itself is problematic, but init should still mostly succeed.
 			// fmt.Fprintf(os.Stderr, "warning: failed to initialize/clear transient session: %v\n", err)
 			return nil, fmt.Errorf("failed to initialize/clear transient session: %w", err)
@@ -235,7 +226,7 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 	}
 
 	p.state.CurrentFeature = ""
-	p.state.CurrentPhase = session.None
+	p.state.CurrentPhase = phase.None
 
 	return NewResultWithRulesChanged(actionMessage), nil
 }
@@ -255,9 +246,9 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 		return nil, fmt.Errorf("failed to create feature using service: %w", err)
 	}
 
-	// Update the transient session file
-	if err := p.session.SaveActiveFeature(featureName); err != nil {
-		return nil, fmt.Errorf("failed to save active feature to session: %w", err)
+	// Update the active feature file via feature service
+	if err := p.features.SetActiveFeature(featureName); err != nil {
+		return nil, fmt.Errorf("failed to save active feature: %w", err)
 	}
 
 	// Ensure standard phase files exist for the feature (existing logic)
@@ -267,11 +258,11 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 
 	// Update in-memory project state
 	p.state.CurrentFeature = featureName
-	p.state.CurrentPhase = session.Define
+	p.state.CurrentPhase = phase.Define
 
 	// Update the rules with the new context
 	// The phase for rules refresh should come from the newly set in-memory state.
-	if err := p.rules.RefreshRules(p.state.CurrentFeature, p.state.CurrentPhase.String()); err != nil {
+	if err := p.rules.RefreshRules(p.state.CurrentFeature, string(p.state.CurrentPhase)); err != nil {
 		return nil, fmt.Errorf("failed to refresh rules: %w", err)
 	}
 
@@ -284,7 +275,7 @@ func (p *Project) CreateFeature(ctx context.Context, featureName string) (*Resul
 }
 
 // ChangePhase changes the current phase of the active feature
-func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*Result, error) {
+func (p *Project) ChangePhase(ctx context.Context, targetPhase phase.Phase) (*Result, error) {
 	// Check if project is initialized
 	if err := p.RequiresInitialized(); err != nil {
 		return nil, err
@@ -294,8 +285,8 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 	// Or rely on in-memory state which should be accurate if only d3 commands modify it.
 	// Let's rely on in-memory for now.
 	if p.state.CurrentFeature == "" {
-		// Load from transient store as fallback?
-		activeFeature, loadErr := p.session.LoadActiveFeature()
+		// Load from active feature file as fallback?
+		activeFeature, loadErr := p.features.GetActiveFeature()
 		if loadErr != nil || activeFeature == "" {
 			return nil, ErrNoActiveFeature
 		}
@@ -325,7 +316,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 	p.state.CurrentPhase = targetPhase
 
 	// Update rules with the new context
-	if err := p.rules.RefreshRules(currentFeatureName, targetPhase.String()); err != nil {
+	if err := p.rules.RefreshRules(currentFeatureName, string(targetPhase)); err != nil {
 		return nil, fmt.Errorf("failed to refresh rules: %w", err)
 	}
 
@@ -342,7 +333,7 @@ func (p *Project) ChangePhase(ctx context.Context, targetPhase session.Phase) (*
 
 	// Check for impact (existing files in target phase dir)
 	hasImpact := false
-	phaseDir := filepath.Join(p.state.FeaturesDir, currentFeatureName, targetPhase.String())
+	phaseDir := filepath.Join(p.state.FeaturesDir, currentFeatureName, string(targetPhase))
 	if _, errStat := p.fs.Stat(phaseDir); errStat == nil {
 		hasImpact = true
 	} else if !os.IsNotExist(errStat) {
@@ -369,9 +360,9 @@ func (p *Project) EnterFeature(ctx context.Context, featureName string) (*Result
 		return nil, fmt.Errorf("cannot enter feature '%s': %w", featureName, err)
 	}
 
-	// Update the transient session file
-	if err := p.session.SaveActiveFeature(featureName); err != nil {
-		return nil, fmt.Errorf("failed to save active feature to session: %w", err)
+	// Update the active feature file via feature service
+	if err := p.features.SetActiveFeature(featureName); err != nil {
+		return nil, fmt.Errorf("failed to save active feature: %w", err)
 	}
 
 	// Update in-memory project state
@@ -379,7 +370,7 @@ func (p *Project) EnterFeature(ctx context.Context, featureName string) (*Result
 	p.state.CurrentPhase = phase
 
 	// Update rules for the new context
-	if err := p.rules.RefreshRules(p.state.CurrentFeature, p.state.CurrentPhase.String()); err != nil {
+	if err := p.rules.RefreshRules(p.state.CurrentFeature, string(p.state.CurrentPhase)); err != nil {
 		// Entering a feature implies rules MUST be refreshed. Treat failure as critical.
 		return nil, fmt.Errorf("failed to refresh rules for feature '%s': %w", featureName, err)
 	}
@@ -404,8 +395,8 @@ func (p *Project) ExitFeature(ctx context.Context) (*Result, error) {
 	// Let's rely on memory first, as commands should keep it sync'd
 	exitedFeatureName := p.state.CurrentFeature
 	if exitedFeatureName == "" {
-		// Maybe try loading from transient store just in case memory is stale?
-		loadedFeature, loadErr := p.session.LoadActiveFeature()
+		// Maybe try loading from active feature file just in case memory is stale?
+		loadedFeature, loadErr := p.features.GetActiveFeature()
 		if loadErr != nil {
 			// Log error loading, but proceed as if no feature active
 			fmt.Fprintf(os.Stderr, "warning: error loading active feature during exit: %v\n", loadErr)
@@ -423,14 +414,14 @@ func (p *Project) ExitFeature(ctx context.Context) (*Result, error) {
 		return NewResult("No active feature to exit."), nil
 	}
 
-	// Clear the transient session file
-	if err := p.session.ClearActiveFeature(); err != nil {
-		return nil, fmt.Errorf("failed to clear active feature session: %w", err)
+	// Clear the active feature file via feature service
+	if err := p.features.ClearActiveFeature(); err != nil {
+		return nil, fmt.Errorf("failed to clear active feature: %w", err)
 	}
 
 	// Clear in-memory project state
 	p.state.CurrentFeature = ""
-	p.state.CurrentPhase = session.None
+	p.state.CurrentPhase = phase.None
 
 	// Update/clear rules to reflect no active feature.
 	if err := p.rules.ClearGeneratedRules(); err != nil { // Call new Clear method
@@ -444,4 +435,44 @@ func (p *Project) ExitFeature(ctx context.Context) (*Result, error) {
 	}
 
 	return NewResultWithRulesChanged(fmt.Sprintf("Exited feature '%s'. No active feature. Cursor rules cleared.", exitedFeatureName)), nil
+}
+
+// DeleteFeature removes a feature and its associated data.
+// If the deleted feature is the active one, it also clears the active feature context.
+func (p *Project) DeleteFeature(ctx context.Context, featureName string) (*Result, error) {
+	if err := p.RequiresInitialized(); err != nil {
+		return nil, err
+	}
+
+	// Attempt to delete the feature using the feature service
+	// feature.Service.DeleteFeature now handles clearing of .active_feature file internally
+	// and returns a boolean indicating if the active context was indeed cleared.
+	activeContextCleared, err := p.features.DeleteFeature(ctx, featureName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete feature '%s' using service: %w", featureName, err)
+	}
+
+	message := fmt.Sprintf("Feature '%s' deleted successfully.", featureName)
+	rulesNeedUpdate := false // Renamed from rulesNeedRefresh for clarity
+
+	if activeContextCleared {
+		p.state.CurrentFeature = ""
+		p.state.CurrentPhase = phase.None
+
+		// Rules need to be cleared/refreshed to reflect no active feature
+		if err := p.rules.ClearGeneratedRules(); err != nil {
+			message += fmt.Sprintf(" Warning: failed to clear rules after deleting active feature: %v", err)
+		}
+		rulesNeedUpdate = true // Indicate rules were touched (cleared in this case)
+		message += " Active feature context has been cleared."
+	}
+
+	if p.state.OnStateChanged != nil {
+		p.state.OnStateChanged()
+	}
+
+	if rulesNeedUpdate {
+		return NewResultWithRulesChanged(message), nil
+	}
+	return NewResult(message), nil
 }

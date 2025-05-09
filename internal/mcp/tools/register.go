@@ -12,5 +12,6 @@ func RegisterTools(mcpServer *server.MCPServer, proj project.ProjectService) {
 	mcpServer.AddTool(FeatureCreateTool, HandleFeatureCreate(proj))
 	mcpServer.AddTool(FeatureEnterTool, HandleFeatureEnter(proj))
 	mcpServer.AddTool(FeatureExitTool, HandleFeatureExit(proj))
+	mcpServer.AddTool(FeatureDeleteTool, HandleFeatureDelete(proj))
 	mcpServer.AddTool(InitTool, HandleInit(proj))
 }
