@@ -191,6 +191,8 @@ func TestEnsureMCPJSON(t *testing.T) {
 func TestEnsureD3GitignoreEntries(t *testing.T) {
 	// t.Skip("TestEnsureD3GitignoreEntries not yet implemented")
 
+	newGitignoreContent := ".feature\nfeatures/*/.phase\n"
+
 	tests := []struct {
 		name                string
 		projectRoot         string
@@ -211,7 +213,7 @@ func TestEnsureD3GitignoreEntries(t *testing.T) {
 				cursorGitignorePath := filepath.Join(cursorGitignoreDir, ".gitignore")
 
 				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(nil).Times(1)
 
 				mockFS.EXPECT().MkdirAll(cursorGitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1)
@@ -240,7 +242,7 @@ func TestEnsureD3GitignoreEntries(t *testing.T) {
 				d3GitignorePath := filepath.Join(d3GitignoreDir, ".gitignore")
 
 				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(errors.New("write failed for .d3/.gitignore")).Times(1)
+				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(errors.New("write failed for .d3/.gitignore")).Times(1)
 				// All calls for .cursor/rules/d3/.gitignore should not be called
 			},
 			expectErr: true,
@@ -256,7 +258,7 @@ func TestEnsureD3GitignoreEntries(t *testing.T) {
 				cursorGitignoreDir := filepath.Join(cursorRulesD3DirAbs, "d3")
 
 				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(nil).Times(1)
 
 				mockFS.EXPECT().MkdirAll(cursorGitignoreDir, os.FileMode(0755)).Return(errors.New("mkdir failed for .cursor/rules/d3")).Times(1)
 				// WriteFile for .cursor/rules/d3/.gitignore should not be called
@@ -275,7 +277,7 @@ func TestEnsureD3GitignoreEntries(t *testing.T) {
 				cursorGitignorePath := filepath.Join(cursorGitignoreDir, ".gitignore")
 
 				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(".session\n"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(nil).Times(1)
 
 				mockFS.EXPECT().MkdirAll(cursorGitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(errors.New("write failed for .cursor/rules/d3/.gitignore")).Times(1)

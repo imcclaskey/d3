@@ -105,7 +105,7 @@ func (op *DefaultFileOperator) EnsureD3GitignoreEntries(fs ports.FileSystem, d3D
 		{
 			// Path for .d3/.gitignore, ensure it's relative to project root for joining
 			path:    filepath.Join(strings.TrimPrefix(d3DirAbs, projectRootAbs+string(filepath.Separator)), ".gitignore"),
-			content: ".session\n",
+			content: ".feature\nfeatures/*/.phase\n",
 		},
 		{
 			// Path for .cursor/rules/d3/.gitignore, ensure it's relative for joining
