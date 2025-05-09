@@ -24,10 +24,12 @@ func TestRuleGenerator_GeneratePrefix(t *testing.T) {
 		{"no context", "", "", "Ready"},
 		{"feature only", "feat1", "", "Ready"},
 		{"phase only", "", "define", "Ready"},
-		{"define phase", "my-feature", "define", "Defining my-feature"},
-		{"design phase", "my-feature", "design", "Designing my-feature"},
-		{"deliver phase", "my-feature", "deliver", "Delivering my-feature"},
-		{"unknown phase", "my-feature", "unknown", "Unknowning my-feature"}, // Title case + ing
+		{"define phase", "my-feature", "define", "my-feature - define"},
+		{"design phase", "my-feature", "design", "my-feature - design"},
+		{"deliver phase", "my-feature", "deliver", "my-feature - deliver"},
+		{"unknown phase with feature", "my-feature", "unknown", "my-feature - unknown"},
+		// Add a case for a phase with different casing to ensure it's used as-is
+		{"mixedCase phase", "another-feat", "DefineNew", "another-feat - DefineNew"},
 	}
 
 	g := NewRuleGenerator()
@@ -93,7 +95,7 @@ func TestRuleGenerator_GenerateCoreContent(t *testing.T) {
 		Templates = originalTemplates
 	}()
 
-	Templates["core"] = "Core Prefix: {{prefix}}"
+	Templates["core"] = "### d3 - {{prefix}}"
 
 	tests := []struct {
 		name    string
@@ -102,8 +104,8 @@ func TestRuleGenerator_GenerateCoreContent(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{"valid context", "my-feature", "design", "Core Prefix: Designing my-feature", false},
-		{"no context", "", "", "Core Prefix: Ready", false},
+		{"valid context", "my-feature", "design", "### d3 - my-feature - design", false},
+		{"no context", "", "", "### d3 - Ready", false},
 	}
 
 	g := NewRuleGenerator()
@@ -154,6 +156,7 @@ func TestService_RefreshRules(t *testing.T) {
 				mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockGen.EXPECT().GenerateCoreContent("feat1", "").Return("core content", nil).Times(1)
 				mockFS.EXPECT().WriteFile(corePath, []byte("core content"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFS.EXPECT().Remove(phasePath).Return(nil).Times(1)
 			},
 			wantErr: false,
 		},
@@ -222,6 +225,82 @@ func TestService_RefreshRules(t *testing.T) {
 				mockFS.EXPECT().WriteFile(corePath, []byte("core ok 7"), os.FileMode(0644)).Return(nil).Times(1)
 				mockGen.EXPECT().GeneratePhaseContent("feat7", "deliver").Return("deliver content", nil).Times(1)
 				mockFS.EXPECT().WriteFile(phasePath, []byte("deliver content"), os.FileMode(0644)).Return(fmt.Errorf("phase write failed")).Times(1)
+			},
+			wantErr: true,
+		},
+		{
+			name:    "no feature, no phase - core and phase removed",
+			feature: "",
+			phase:   "",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockGen *rulesmocks.MockGenerator) {
+				mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				// No GenerateCoreContent or WriteFile for core
+				mockFS.EXPECT().Remove(corePath).Return(nil).Times(1)
+				// No GeneratePhaseContent or WriteFile for phase
+				mockFS.EXPECT().Remove(phasePath).Return(nil).Times(1)
+			},
+			wantErr: false,
+		},
+		{
+			name:    "no feature, no phase - core and phase removed (idempotent)",
+			feature: "",
+			phase:   "",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockGen *rulesmocks.MockGenerator) {
+				mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().Remove(corePath).Return(os.ErrNotExist).Times(1)  // Return ErrNotExist
+				mockFS.EXPECT().Remove(phasePath).Return(os.ErrNotExist).Times(1) // Return ErrNotExist
+			},
+			wantErr: false,
+		},
+		{
+			name:    "feature present, invalid phase - core written, phase removed",
+			feature: "featValid",
+			phase:   "invalidPhase",
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockGen *rulesmocks.MockGenerator) {
+				mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockGen.EXPECT().GenerateCoreContent("featValid", "invalidPhase").Return("core content valid", nil).Times(1)
+				mockFS.EXPECT().WriteFile(corePath, []byte("core content valid"), os.FileMode(0644)).Return(nil).Times(1)
+				// No GeneratePhaseContent or WriteFile for phase
+				mockFS.EXPECT().Remove(phasePath).Return(nil).Times(1)
+			},
+			wantErr: false,
+		},
+		{
+			name:    "no feature, valid phase - core removed, phase written",
+			feature: "",
+			phase:   "define", // A valid phase
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockGen *rulesmocks.MockGenerator) {
+				mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				// Core file removed
+				mockFS.EXPECT().Remove(corePath).Return(nil).Times(1)
+				// Phase file generated and written
+				mockGen.EXPECT().GeneratePhaseContent("", "define").Return("define content no feature", nil).Times(1)
+				mockFS.EXPECT().WriteFile(phasePath, []byte("define content no feature"), os.FileMode(0644)).Return(nil).Times(1)
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Remove core fails (not IsNotExist)",
+			feature: "", // Triggers core removal
+			phase:   "", // Triggers phase removal
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockGen *rulesmocks.MockGenerator) {
+				mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().Remove(corePath).Return(fmt.Errorf("some disk error")).Times(1)
+				// Remove for phasePath might or might not be called depending on early exit.
+				// For simplicity, we don't set an expectation for it here,
+				// as the error from corePath removal should cause a failure.
+			},
+			wantErr: true,
+		},
+		{
+			name:    "Remove phase fails (not IsNotExist)",
+			feature: "featWithPhase",
+			phase:   "invalidPhase", // Triggers phase removal
+			setupMocks: func(mockFS *portsmocks.MockFileSystem, mockGen *rulesmocks.MockGenerator) {
+				mockFS.EXPECT().MkdirAll(d3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockGen.EXPECT().GenerateCoreContent("featWithPhase", "invalidPhase").Return("core content", nil).Times(1)
+				mockFS.EXPECT().WriteFile(corePath, []byte("core content"), os.FileMode(0644)).Return(nil).Times(1)
+				mockFS.EXPECT().Remove(phasePath).Return(fmt.Errorf("some disk error")).Times(1)
 			},
 			wantErr: true,
 		},

@@ -1,1 +1,0 @@
-Run `make test` command to test the entire codebase. Always ensure all tests pass, and troubleshoot if they fail. 

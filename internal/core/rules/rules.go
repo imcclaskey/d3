@@ -66,20 +66,7 @@ func (g *RuleGenerator) GeneratePrefix(feature, phase string) string {
 		return "Ready"
 	}
 
-	// Simple map for common phases
-	phaseVerbs := map[string]string{
-		"define":  "Defining",
-		"design":  "Designing",
-		"deliver": "Delivering",
-	}
-
-	// Get verb form or create it
-	verb := phaseVerbs[strings.ToLower(phase)]
-	if verb == "" {
-		verb = strings.Title(phase) + "ing"
-	}
-
-	return fmt.Sprintf("%s %s", verb, feature)
+	return fmt.Sprintf("%s - %s", feature, phase)
 }
 
 // Service provides rule management operations
@@ -109,16 +96,23 @@ func (s *Service) RefreshRules(feature string, phase string) error {
 		return fmt.Errorf("failed to create rule directory: %w", err)
 	}
 
-	// Generate core rule content
-	coreContent, err := s.generator.GenerateCoreContent(feature, phase)
-	if err != nil {
-		return fmt.Errorf("failed to generate core rule: %w", err)
-	}
-
-	// Write core rule file
-	corePath := filepath.Join(d3Dir, "core.gen.mdc")
-	if err := s.fs.WriteFile(corePath, []byte(coreContent), 0644); err != nil {
-		return fmt.Errorf("failed to write core rule file: %w", err)
+	if feature != "" {
+		// Generate core rule content
+		coreContent, err := s.generator.GenerateCoreContent(feature, phase)
+		if err != nil {
+			return fmt.Errorf("failed to generate core rule: %w", err)
+		}
+		// Write core rule file
+		corePath := filepath.Join(d3Dir, "core.gen.mdc")
+		if err := s.fs.WriteFile(corePath, []byte(coreContent), 0644); err != nil {
+			return fmt.Errorf("failed to write core rule file: %w", err)
+		}
+	} else {
+		// Delete core rule file if it exists
+		corePath := filepath.Join(d3Dir, "core.gen.mdc")
+		if err := s.fs.Remove(corePath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to delete core rule file: %w", err)
+		}
 	}
 
 	if phase == "define" || phase == "design" || phase == "deliver" {
@@ -132,6 +126,12 @@ func (s *Service) RefreshRules(feature string, phase string) error {
 		phasePath := filepath.Join(d3Dir, "phase.gen.mdc")
 		if err := s.fs.WriteFile(phasePath, []byte(phaseContent), 0644); err != nil {
 			return fmt.Errorf("failed to write phase rule file: %w", err)
+		}
+	} else {
+		// Delete phase rule file if it exists
+		phasePath := filepath.Join(d3Dir, "phase.gen.mdc")
+		if err := s.fs.Remove(phasePath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to delete phase rule file: %w", err)
 		}
 	}
 

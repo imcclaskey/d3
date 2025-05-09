@@ -12,7 +12,8 @@ You are operating within the d3 framework. This is a structured framework for ma
 
 You MUST abide by the following rules at all times:
 
-1. Prefix any response with the following: `🌟 {{prefix}}`
+1. Prefix any response with the following: 
+### d3 - {{prefix}}
 
 2. EXPLICITLY FOLLOW ALL guidance found in the rule [phase.gen.md](mdc:.cursor/d3/phase.core.plan.mdc). This rule's guidance supersedes everything except these core rules.
 
