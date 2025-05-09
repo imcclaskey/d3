@@ -2,13 +2,15 @@ description: Progress tracking for State Simplification feature.
 
 # Files to be modified during this feature delivery.
 # Add paths relative to the project root.
-files_modified: []
+files_modified:
+  - internal/core/feature/feature.go
+  - internal/core/feature/feature_test.go
 
 # Tasks derived from the delivery steps in plan.md
 tasks:
   - id: p1_s1_feature_service_mods
     description: "[code] Modify FeatureServicer (internal/core/feature/feature.go) for .phase and .feature files."
-    status: pending
+    status: complete
     type: code
     details:
       - "Update CreateFeature for .phase file"
@@ -21,15 +23,15 @@ tasks:
       - "Implement ClearActiveFeature for .d3/.feature"
   - id: p1_s2_feature_service_tests
     description: "[code] Add/Update unit tests for FeatureServicer."
-    status: pending
+    status: complete
     type: code
   - id: p1_s3_feature_service_run_tests
     description: "[test] Run all unit tests for internal/core/feature/."
-    status: pending
+    status: complete
     type: test
   - id: p1_s4_feature_service_commit
     description: "[commit] Commit changes for 'Refactor FeatureService for .phase and .feature files'."
-    status: pending
+    status: complete
     type: commit
 
   - id: p2_s1_project_service_mods
