@@ -1,4 +1,4 @@
-.PHONY: build install clean test release version-patch version-minor version-major print-version
+.PHONY: build install clean test release version-patch version-minor version-major print-version update-homebrew push-release
 
 # Binary name
 BINARY_NAME=d3
@@ -90,6 +90,12 @@ version-major:
 	@rm -f $(VERSION_FILE).bak
 	@$(MAKE) post-version
 
+# Update Homebrew formula
+update-homebrew:
+	@echo "Updating Homebrew formula with version $(VERSION)"
+	@./scripts/update_formula.sh
+	@echo "Formula updated."
+
 # Common post-version tasks
 post-version: build test
 	@echo "New version: $$(grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/')"
@@ -98,18 +104,18 @@ post-version: build test
 		NEW_VERSION=$$(grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/'); \
 		git add $(VERSION_FILE); \
 		git commit -m "Bump version to $$NEW_VERSION"; \
-		git tag -a "v$$NEW_VERSION" -m "Release v$$NEW_VERSION"; \
-		echo "Version $$NEW_VERSION ready to release. Run:"; \
-		echo "  git push origin main && git push origin v$$NEW_VERSION"; \
+		echo "Run 'make release' to build binaries and create the release."; \
 	else \
 		echo "Version update cancelled."; \
 	fi
 
-# Create a new release
-release: build-all
+# Create a new release (builds binaries, updates formula, and creates tag)
+release: build-all update-homebrew
 	@echo "Creating release v$(VERSION)"
+	@git add d3.rb
+	@git commit -m "Update Homebrew formula for v$(VERSION)" || echo "No changes to commit for d3.rb"
 	@git tag -a v$(VERSION) -m "Release v$(VERSION)"
-	@echo "Tag created. Run 'git push origin v$(VERSION)' to trigger the GitHub workflow"
+	@echo "Tag created. Run 'make push-release' to push everything to GitHub."
 
 # Push new version
 push-release:

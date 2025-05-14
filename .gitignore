@@ -32,6 +32,8 @@ Thumbs.db
 # Log files
 *.log
 
+build/
+
 # Cursor internal files (already ignored in .cursor/rules/d3/.gitignore, but good practice)
 /.cursor/out/
 /.cursor/debug/ 

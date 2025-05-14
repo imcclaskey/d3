@@ -161,3 +161,18 @@ project/
 <p align="center">
   Built with ❤️ for better AI collaboration
 </p>
+
+## Install with Homebrew
+
+You can install d3 directly via Homebrew without adding a tap:
+
+```bash
+# Install directly from GitHub
+brew install imcclaskey/d3/d3
+```
+
+Or even more directly:
+
+```bash
+brew install https://raw.githubusercontent.com/imcclaskey/d3/main/d3.rb
+```
