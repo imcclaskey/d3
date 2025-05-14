@@ -44,5 +44,13 @@ type FileOperator interface {
 	// It preserves user entries and maintains the D3 section of the file.
 	EnsureRootGitignoreEntries(fs ports.FileSystem, projectRootAbs string) error
 
+	// EnsureRootCursorignoreEntries manages D3-specific entries in the root .cursorignore file.
+	// It preserves user entries and maintains the D3 section of the file.
+	EnsureRootCursorignoreEntries(fs ports.FileSystem, projectRootAbs string) error
+
+	// EnsureIgnoreFileEntries is a generic function for managing entries in ignore files.
+	// It preserves user entries and maintains a specific section of the file.
+	EnsureIgnoreFileEntries(fs ports.FileSystem, ignoreFilePath string, patterns []string, sectionMarker string) error
+
 	EnsureProjectFiles(fs ports.FileSystem, d3DirAbs string) error
 }

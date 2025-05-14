@@ -293,6 +293,20 @@ func (m *MockFileOperator) EXPECT() *MockFileOperatorMockRecorder {
 	return m.recorder
 }
 
+// EnsureIgnoreFileEntries mocks base method.
+func (m *MockFileOperator) EnsureIgnoreFileEntries(arg0 ports.FileSystem, arg1 string, arg2 []string, arg3 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnsureIgnoreFileEntries", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnsureIgnoreFileEntries indicates an expected call of EnsureIgnoreFileEntries.
+func (mr *MockFileOperatorMockRecorder) EnsureIgnoreFileEntries(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureIgnoreFileEntries", reflect.TypeOf((*MockFileOperator)(nil).EnsureIgnoreFileEntries), arg0, arg1, arg2, arg3)
+}
+
 // EnsureMCPJSON mocks base method.
 func (m *MockFileOperator) EnsureMCPJSON(arg0 ports.FileSystem, arg1 string) error {
 	m.ctrl.T.Helper()
@@ -319,6 +333,20 @@ func (m *MockFileOperator) EnsureProjectFiles(arg0 ports.FileSystem, arg1 string
 func (mr *MockFileOperatorMockRecorder) EnsureProjectFiles(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureProjectFiles", reflect.TypeOf((*MockFileOperator)(nil).EnsureProjectFiles), arg0, arg1)
+}
+
+// EnsureRootCursorignoreEntries mocks base method.
+func (m *MockFileOperator) EnsureRootCursorignoreEntries(arg0 ports.FileSystem, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnsureRootCursorignoreEntries", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnsureRootCursorignoreEntries indicates an expected call of EnsureRootCursorignoreEntries.
+func (mr *MockFileOperatorMockRecorder) EnsureRootCursorignoreEntries(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureRootCursorignoreEntries", reflect.TypeOf((*MockFileOperator)(nil).EnsureRootCursorignoreEntries), arg0, arg1)
 }
 
 // EnsureRootGitignoreEntries mocks base method.

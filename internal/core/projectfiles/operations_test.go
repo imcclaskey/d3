@@ -340,3 +340,265 @@ bin/
 		})
 	}
 }
+
+// TestEnsureRootCursorignoreEntries tests the EnsureRootCursorignoreEntries function
+func TestEnsureRootCursorignoreEntries(t *testing.T) {
+	tests := []struct {
+		name             string
+		projectRoot      string
+		initialContent   []byte // nil if file does not exist, otherwise the initial content
+		readFileErr      error  // Error for ReadFile mock
+		writeFileErr     error  // Error for WriteFile mock
+		expectErr        bool
+		expectedPatterns []string // Patterns that should be present in the final file
+	}{
+		{
+			name:        "create new cursorignore (file doesn't exist)",
+			projectRoot: "/testroot",
+			readFileErr: os.ErrNotExist,
+			expectedPatterns: []string{
+				"# d3",
+				".d3/templates/",
+			},
+		},
+		{
+			name:        "update existing cursorignore without D3 section",
+			projectRoot: "/testroot2",
+			initialContent: []byte(`# General patterns
+node_modules/
+dist/
+build/
+
+# Other entries
+*.log
+`),
+			expectedPatterns: []string{
+				"# General patterns",
+				"node_modules/",
+				"# d3",
+				".d3/templates/",
+			},
+		},
+		{
+			name:        "update existing cursorignore with D3 section",
+			projectRoot: "/testroot3",
+			initialContent: []byte(`# General patterns
+node_modules/
+build/
+
+# d3
+.d3/old_pattern/
+
+# Other entries
+*.log
+`),
+			expectedPatterns: []string{
+				"# General patterns",
+				"node_modules/",
+				"# d3",
+				".d3/templates/", // New pattern should be added
+				"# Other entries",
+				"*.log",
+			},
+			// These patterns should NOT be in the output
+			// .d3/old_pattern/ (should be replaced)
+		},
+		{
+			name:         "error on WriteFile",
+			projectRoot:  "/testroot4",
+			writeFileErr: errors.New("write error"),
+			expectErr:    true,
+		},
+		{
+			name:        "error on ReadFile (not os.ErrNotExist)",
+			projectRoot: "/testroot5",
+			readFileErr: errors.New("read error"),
+			expectErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockFS := portsmocks.NewMockFileSystem(ctrl)
+
+			cursorignorePath := filepath.Join(tt.projectRoot, ".cursorignore")
+
+			// Set up ReadFile expectation
+			readFileContent := tt.initialContent
+			readFileError := tt.readFileErr
+			mockFS.EXPECT().ReadFile(cursorignorePath).Return(readFileContent, readFileError).Times(1)
+
+			// Set up WriteFile expectation
+			if !tt.expectErr || tt.writeFileErr != nil {
+				mockFS.EXPECT().WriteFile(cursorignorePath, gomock.Any(), os.FileMode(0644)).
+					DoAndReturn(func(_ string, data []byte, _ os.FileMode) error {
+						if tt.writeFileErr == nil { // If WriteFile itself is not mocked to error
+							content := string(data)
+
+							// Check that all expected patterns are in the file
+							for _, pattern := range tt.expectedPatterns {
+								if !strings.Contains(content, pattern) {
+									t.Errorf("Expected pattern %q not found in cursorignore content:\n%s", pattern, content)
+								}
+							}
+
+							// If this is an update case, make sure we preserved the existing content outside the D3 section
+							if tt.initialContent != nil && len(tt.initialContent) > 0 {
+								// Check that non-D3 sections from the initial content are preserved
+								// Here we check for a few key lines that should be preserved
+								for _, line := range strings.Split(string(tt.initialContent), "\n") {
+									trimmed := strings.TrimSpace(line)
+									// Skip empty lines, D3 section marker, or lines in the D3 section
+									if trimmed == "" || trimmed == "# d3" || strings.HasPrefix(trimmed, ".d3/") {
+										continue
+									}
+									// Any other line should be preserved
+									if !strings.Contains(content, line) {
+										t.Errorf("Expected line %q to be preserved in cursorignore content", line)
+									}
+								}
+							}
+						}
+						return tt.writeFileErr
+					}).Times(1)
+			}
+
+			op := NewDefaultFileOperator()
+			err := op.EnsureRootCursorignoreEntries(mockFS, tt.projectRoot)
+
+			if (err != nil) != tt.expectErr {
+				t.Errorf("EnsureRootCursorignoreEntries() error = %v, wantErr %v", err, tt.expectErr)
+			}
+		})
+	}
+}
+
+// TestEnsureIgnoreFileEntries tests the generic EnsureIgnoreFileEntries function directly
+func TestEnsureIgnoreFileEntries(t *testing.T) {
+	tests := []struct {
+		name             string
+		ignoreFilePath   string
+		patterns         []string
+		sectionMarker    string
+		initialContent   []byte
+		readFileErr      error
+		writeFileErr     error
+		expectErr        bool
+		expectedPatterns []string
+	}{
+		{
+			name:           "create new custom ignore file",
+			ignoreFilePath: "/testroot/custom.ignore",
+			patterns: []string{
+				"pattern1",
+				"pattern2",
+			},
+			sectionMarker: "# custom section",
+			readFileErr:   os.ErrNotExist,
+			expectedPatterns: []string{
+				"# custom section",
+				"pattern1",
+				"pattern2",
+			},
+		},
+		{
+			name:           "update existing file with new section",
+			ignoreFilePath: "/testroot/existing.ignore",
+			patterns: []string{
+				"special/pattern",
+				"another/pattern",
+			},
+			sectionMarker: "# special",
+			initialContent: []byte(`# Some existing content
+existing/pattern
+another/existing/pattern
+`),
+			expectedPatterns: []string{
+				"# Some existing content",
+				"existing/pattern",
+				"# special",
+				"special/pattern",
+				"another/pattern",
+			},
+		},
+		{
+			name:           "update existing section in file",
+			ignoreFilePath: "/testroot/update.ignore",
+			patterns: []string{
+				"updated/pattern1",
+				"updated/pattern2",
+			},
+			sectionMarker: "# special",
+			initialContent: []byte(`# Some content
+pattern1
+
+# special
+old/pattern1
+old/pattern2
+
+# More content
+other/pattern
+`),
+			expectedPatterns: []string{
+				"# Some content",
+				"pattern1",
+				"# special",
+				"updated/pattern1",
+				"updated/pattern2",
+				"# More content",
+				"other/pattern",
+			},
+		},
+		{
+			name:           "error on write",
+			ignoreFilePath: "/testroot/error.ignore",
+			patterns:       []string{"pattern"},
+			sectionMarker:  "# section",
+			writeFileErr:   errors.New("write error"),
+			expectErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockFS := portsmocks.NewMockFileSystem(ctrl)
+
+			// Set up ReadFile expectation
+			readFileContent := tt.initialContent
+			readFileError := tt.readFileErr
+			mockFS.EXPECT().ReadFile(tt.ignoreFilePath).Return(readFileContent, readFileError).Times(1)
+
+			// Set up WriteFile expectation
+			if !tt.expectErr || tt.writeFileErr != nil {
+				mockFS.EXPECT().WriteFile(tt.ignoreFilePath, gomock.Any(), os.FileMode(0644)).
+					DoAndReturn(func(_ string, data []byte, _ os.FileMode) error {
+						if tt.writeFileErr == nil {
+							content := string(data)
+
+							// Check that all expected patterns are in the file
+							for _, pattern := range tt.expectedPatterns {
+								if !strings.Contains(content, pattern) {
+									t.Errorf("Expected pattern %q not found in ignore file content:\n%s", pattern, content)
+								}
+							}
+
+							// Verify section marker and patterns are in the right order
+							if !strings.Contains(content, tt.sectionMarker+"\n"+tt.patterns[0]) {
+								t.Errorf("Section marker and patterns are not properly ordered in the content")
+							}
+						}
+						return tt.writeFileErr
+					}).Times(1)
+			}
+
+			op := NewDefaultFileOperator()
+			err := op.EnsureIgnoreFileEntries(mockFS, tt.ignoreFilePath, tt.patterns, tt.sectionMarker)
+
+			if (err != nil) != tt.expectErr {
+				t.Errorf("EnsureIgnoreFileEntries() error = %v, wantErr %v", err, tt.expectErr)
+			}
+		})
+	}
+}

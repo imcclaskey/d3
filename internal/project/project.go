@@ -186,6 +186,10 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 		return nil, fmt.Errorf("failed to update root .gitignore file: %w", err)
 	}
 
+	if err = p.fileOp.EnsureRootCursorignoreEntries(p.fs, p.state.ProjectRoot); err != nil {
+		return nil, fmt.Errorf("failed to update root .cursorignore file: %w", err)
+	}
+
 	if err = p.fileOp.EnsureProjectFiles(p.fs, p.state.D3Dir); err != nil {
 		return nil, fmt.Errorf("failed to create project files: %w", err)
 	}

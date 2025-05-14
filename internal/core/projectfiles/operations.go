@@ -36,8 +36,8 @@ const (
 	D3Command        = "d3"
 	D3ServeArgPrefix = "serve --workdir "
 
-	// Constants for gitignore management
-	D3GitignoreSectionMarker = "# d3"
+	// Constants for ignore file management
+	D3IgnoreSectionMarker = "# d3"
 )
 
 // DefaultFileOperator implements file operations for project initialization.
@@ -96,9 +96,44 @@ func (op *DefaultFileOperator) EnsureMCPJSON(fs ports.FileSystem, projectRoot st
 	return nil
 }
 
-// EnsureRootGitignoreEntries manages D3-specific entries in the root .gitignore file.
+// EnsureIgnoreFileEntries manages entries in an ignore file (like .gitignore or .cursorignore).
 // It reads the existing file if present, preserves user entries, and either updates
-// or creates a D3-specific section marked with "# d3".
+// or creates a section marked with the provided section marker.
+func (op *DefaultFileOperator) EnsureIgnoreFileEntries(fs ports.FileSystem, ignoreFilePath string, patterns []string, sectionMarker string) error {
+	// Check if the ignore file exists
+	fileExists := false
+	data, err := fs.ReadFile(ignoreFilePath)
+	if err == nil {
+		fileExists = true
+	} else if !os.IsNotExist(err) {
+		// Some error other than "file doesn't exist"
+		return fmt.Errorf("failed to read %s: %w", ignoreFilePath, err)
+	}
+
+	var newContent []byte
+
+	if !fileExists {
+		// File doesn't exist, create a new one with our patterns
+		var buffer bytes.Buffer
+		buffer.WriteString(sectionMarker + "\n")
+		for _, pattern := range patterns {
+			buffer.WriteString(pattern + "\n")
+		}
+		newContent = buffer.Bytes()
+	} else {
+		// File exists, update or add the section
+		newContent = op.updateIgnoreFileContent(data, patterns, sectionMarker)
+	}
+
+	// Write back the file
+	if err := fs.WriteFile(ignoreFilePath, newContent, 0644); err != nil {
+		return fmt.Errorf("failed to write %s: %w", ignoreFilePath, err)
+	}
+
+	return nil
+}
+
+// EnsureRootGitignoreEntries manages D3-specific entries in the root .gitignore file.
 func (op *DefaultFileOperator) EnsureRootGitignoreEntries(fs ports.FileSystem, projectRootAbs string) error {
 	gitignorePath := filepath.Join(projectRootAbs, ".gitignore")
 
@@ -110,48 +145,30 @@ func (op *DefaultFileOperator) EnsureRootGitignoreEntries(fs ports.FileSystem, p
 		".d3/features/*/.phase",      // phase markers
 	}
 
-	// Check if the gitignore file exists
-	fileExists := false
-	data, err := fs.ReadFile(gitignorePath)
-	if err == nil {
-		fileExists = true
-	} else if !os.IsNotExist(err) {
-		// Some error other than "file doesn't exist"
-		return fmt.Errorf("failed to read .gitignore: %w", err)
-	}
-
-	var newContent []byte
-
-	if !fileExists {
-		// File doesn't exist, create a new one with our patterns
-		var buffer bytes.Buffer
-		buffer.WriteString(D3GitignoreSectionMarker + "\n")
-		for _, pattern := range d3Patterns {
-			buffer.WriteString(pattern + "\n")
-		}
-		newContent = buffer.Bytes()
-	} else {
-		// File exists, update or add the D3 section
-		newContent = op.updateGitignoreContent(data, d3Patterns)
-	}
-
-	// Write back the file
-	if err := fs.WriteFile(gitignorePath, newContent, 0644); err != nil {
-		return fmt.Errorf("failed to write .gitignore: %w", err)
-	}
-
-	return nil
+	return op.EnsureIgnoreFileEntries(fs, gitignorePath, d3Patterns, D3IgnoreSectionMarker)
 }
 
-// updateGitignoreContent handles updating an existing .gitignore file
-// by either updating the D3 section or appending it
-func (op *DefaultFileOperator) updateGitignoreContent(existingContent []byte, d3Patterns []string) []byte {
+// EnsureRootCursorignoreEntries manages D3-specific entries in the root .cursorignore file.
+func (op *DefaultFileOperator) EnsureRootCursorignoreEntries(fs ports.FileSystem, projectRootAbs string) error {
+	cursorignorePath := filepath.Join(projectRootAbs, ".cursorignore")
+
+	// These are the patterns we want to ensure are in the cursorignore file
+	d3Patterns := []string{
+		".d3/templates/",
+	}
+
+	return op.EnsureIgnoreFileEntries(fs, cursorignorePath, d3Patterns, D3IgnoreSectionMarker)
+}
+
+// updateIgnoreFileContent handles updating an existing ignore file
+// by either updating the section or appending it
+func (op *DefaultFileOperator) updateIgnoreFileContent(existingContent []byte, patterns []string, sectionMarker string) []byte {
 	scanner := bufio.NewScanner(bytes.NewReader(existingContent))
 	var outputBuffer bytes.Buffer
 
 	// State tracking
-	inD3Section := false
-	foundD3Section := false
+	inSection := false
+	foundSection := false
 	lineCount := 0
 
 	// Process each line
@@ -159,39 +176,39 @@ func (op *DefaultFileOperator) updateGitignoreContent(existingContent []byte, d3
 		line := scanner.Text()
 		lineCount++
 
-		// Check if this is the start of a D3 section
-		if strings.TrimSpace(line) == D3GitignoreSectionMarker {
-			inD3Section = true
-			foundD3Section = true
+		// Check if this is the start of our section
+		if strings.TrimSpace(line) == sectionMarker {
+			inSection = true
+			foundSection = true
 
 			// Write the marker and our patterns
-			outputBuffer.WriteString(D3GitignoreSectionMarker + "\n")
-			for _, pattern := range d3Patterns {
+			outputBuffer.WriteString(sectionMarker + "\n")
+			for _, pattern := range patterns {
 				outputBuffer.WriteString(pattern + "\n")
 			}
-		} else if inD3Section {
-			// Skip lines in the D3 section (we've already written our updated patterns)
-			// Check if we're leaving the D3 section (blank line or new section marker)
-			if strings.TrimSpace(line) == "" || (strings.HasPrefix(line, "#") && !strings.Contains(line, "D3")) {
-				inD3Section = false
+		} else if inSection {
+			// Skip lines in our section (we've already written our updated patterns)
+			// Check if we're leaving the section (blank line or new section marker)
+			if strings.TrimSpace(line) == "" || (strings.HasPrefix(line, "#") && !strings.Contains(line, "d3")) {
+				inSection = false
 				outputBuffer.WriteString(line + "\n") // Include the line that ended the section
 			}
 		} else {
-			// Not in D3 section, copy the line as is
+			// Not in our section, copy the line as is
 			outputBuffer.WriteString(line + "\n")
 		}
 	}
 
-	// If we didn't find a D3 section, append one at the end
-	if !foundD3Section {
+	// If we didn't find our section, append one at the end
+	if !foundSection {
 		// Add a blank line if the file doesn't end with one
 		if lineCount > 0 && !strings.HasSuffix(string(existingContent), "\n\n") {
 			outputBuffer.WriteString("\n")
 		}
 
-		// Add our D3 section
-		outputBuffer.WriteString(D3GitignoreSectionMarker + "\n")
-		for _, pattern := range d3Patterns {
+		// Add our section
+		outputBuffer.WriteString(sectionMarker + "\n")
+		for _, pattern := range patterns {
 			outputBuffer.WriteString(pattern + "\n")
 		}
 	}
