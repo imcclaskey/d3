@@ -204,7 +204,6 @@ func TestEnsureRootGitignoreEntries(t *testing.T) {
 			projectRoot: "/testroot",
 			readFileErr: os.ErrNotExist,
 			expectedPatterns: []string{
-				"# D3 generated entries",
 				"# d3",
 				".cursor/rules/d3/",
 				".cursor/rules/d3/*.gen.mdc",
@@ -233,7 +232,6 @@ bin/
 			expectedPatterns: []string{
 				"# Go Binaries",
 				"bin/",
-				"# D3 generated entries",
 				"# d3",
 				".cursor/rules/d3/",
 				".cursor/rules/d3/*.gen.mdc",
@@ -261,7 +259,6 @@ bin/
 			expectedPatterns: []string{
 				"# Go Binaries",
 				"bin/",
-				"# D3 generated entries",
 				"# d3",
 				".cursor/rules/d3/",
 				".cursor/rules/d3/*.gen.mdc", // New pattern should be added
