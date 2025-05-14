@@ -84,6 +84,7 @@ make install
     *   **Enter a Feature**: Once a feature exists, ask the AI to "enter the feature 'my-feature'".
         *   *Alternatively, use the CLI:* `d3 feature enter my-feature`
     *   **Move Through Phases**: Instruct the AI to "move to the define phase", "move to the design phase", or "move to the deliver phase".
+        *   *Alternatively, use the CLI:* `d3 phase move define`, `d3 phase move design`, or `d3 phase move deliver`
     *   **Exit a Feature**: When done with a feature, or to switch, ask the AI to "exit the current feature".
         *   *Alternatively, use the CLI:* `d3 exit`
 
@@ -117,8 +118,9 @@ d3 primarily interacts via its MCP server, but retains a few core CLI commands.
 | Command                       | Description                                                      |
 |-------------------------------|------------------------------------------------------------------|
 | `d3 init [--clean | --refresh]` | Initializes or updates the d3 project. `--clean` removes existing `.d3` and re-initializes. `--refresh` updates configuration in an existing project. |
-| `d3 feature create <name>`    | Create a new feature and set it as the current context           |
-| `d3 feature enter <name>`     | Enter a feature context, resuming its last known phase             |
+| `d3 feature create <n>`    | Create a new feature and set it as the current context           |
+| `d3 feature enter <n>`     | Enter a feature context, resuming its last known phase             |
+| `d3 phase move <p>`        | Move the current feature to a different phase (define, design, deliver) |
 | `d3 exit`                     | Exit the current feature context, clearing active feature state. |
 | `d3 serve`                    | Start the d3 MCP server for AI interaction                       |
 | `d3 version`                  | Display the current version of d3                                |

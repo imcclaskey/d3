@@ -46,6 +46,9 @@ func (c *CLI) InitCommands() {
 	// Add top-level exit command
 	c.rootCmd.AddCommand(command.NewExitCommand())
 
+	// Add top-level phase command
+	c.rootCmd.AddCommand(command.NewPhaseCommand())
+
 	// Version command
 	c.rootCmd.AddCommand(&cobra.Command{
 		Use:   "version",

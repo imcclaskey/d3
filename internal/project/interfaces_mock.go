@@ -320,3 +320,17 @@ func (mr *MockFileOperatorMockRecorder) EnsureMCPJSON(arg0, arg1 interface{}) *g
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureMCPJSON", reflect.TypeOf((*MockFileOperator)(nil).EnsureMCPJSON), arg0, arg1)
 }
+
+// EnsureProjectFiles mocks base method.
+func (m *MockFileOperator) EnsureProjectFiles(arg0 ports.FileSystem, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnsureProjectFiles", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnsureProjectFiles indicates an expected call of EnsureProjectFiles.
+func (mr *MockFileOperatorMockRecorder) EnsureProjectFiles(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureProjectFiles", reflect.TypeOf((*MockFileOperator)(nil).EnsureProjectFiles), arg0, arg1)
+}

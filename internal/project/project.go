@@ -186,6 +186,10 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 		return nil, fmt.Errorf("failed to update d3-specific .gitignore files: %w", err)
 	}
 
+	if err = p.fileOp.EnsureProjectFiles(p.fs, p.state.D3Dir); err != nil {
+		return nil, fmt.Errorf("failed to create project files: %w", err)
+	}
+
 	featureName := ""
 	phase := phase.None
 	if refresh {

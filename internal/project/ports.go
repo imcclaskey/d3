@@ -40,4 +40,5 @@ type PhaseServicer interface {
 type FileOperator interface {
 	EnsureMCPJSON(fs ports.FileSystem, projectRoot string) error
 	EnsureD3GitignoreEntries(fs ports.FileSystem, d3DirAbs, cursorRulesD3DirAbs, projectRootAbs string) error
+	EnsureProjectFiles(fs ports.FileSystem, d3DirAbs string) error
 }

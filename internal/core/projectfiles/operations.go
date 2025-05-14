@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings" // Uncommented and to be used
 
-	// "strings" // Will be needed by EnsureD3GitignoreEntries
-
 	"github.com/imcclaskey/d3/internal/core/ports"
 )
 
@@ -127,5 +125,28 @@ func (op *DefaultFileOperator) EnsureD3GitignoreEntries(fs ports.FileSystem, d3D
 			return fmt.Errorf("failed to write %s: %w", fullPath, err)
 		}
 	}
+	return nil
+}
+
+// EnsureProjectFiles creates the necessary project files in the .d3 directory
+func (op *DefaultFileOperator) EnsureProjectFiles(fs ports.FileSystem, d3DirAbs string) error {
+	// Create project.md
+	projectMdPath := filepath.Join(d3DirAbs, "project.md")
+	projectMdContent := ""
+
+	// Create tech.md
+	techMdPath := filepath.Join(d3DirAbs, "tech.md")
+	techMdContent := ""
+
+	// Write project.md
+	if err := fs.WriteFile(projectMdPath, []byte(projectMdContent), 0644); err != nil {
+		return fmt.Errorf("failed to write project.md: %w", err)
+	}
+
+	// Write tech.md
+	if err := fs.WriteFile(techMdPath, []byte(techMdContent), 0644); err != nil {
+		return fmt.Errorf("failed to write tech.md: %w", err)
+	}
+
 	return nil
 }
