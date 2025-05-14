@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -187,102 +188,102 @@ func TestEnsureMCPJSON(t *testing.T) {
 	}
 }
 
-// Placeholder for TestEnsureD3GitignoreEntries
-func TestEnsureD3GitignoreEntries(t *testing.T) {
-	// t.Skip("TestEnsureD3GitignoreEntries not yet implemented")
-
-	newGitignoreContent := ".feature\nfeatures/*/.phase\n"
-
+// TestEnsureRootGitignoreEntries tests the EnsureRootGitignoreEntries function
+func TestEnsureRootGitignoreEntries(t *testing.T) {
 	tests := []struct {
-		name                string
-		projectRoot         string
-		d3DirRel            string // Relative to projectRoot
-		cursorRulesD3DirRel string // Relative to projectRoot
-		mockSetup           func(mockFS *portsmocks.MockFileSystem, projectRoot, d3DirAbs, cursorRulesD3DirAbs string)
-		expectErr           bool
+		name             string
+		projectRoot      string
+		initialContent   []byte // nil if file does not exist, otherwise the initial content
+		readFileErr      error  // Error for ReadFile mock
+		writeFileErr     error  // Error for WriteFile mock
+		expectErr        bool
+		expectedPatterns []string // Patterns that should be present in the final file
 	}{
 		{
-			name:                "successful creation of both gitignore files",
-			projectRoot:         "/testproject",
-			d3DirRel:            ".d3",
-			cursorRulesD3DirRel: ".cursor/rules", // The function appends '/d3' to this path internally for the .gitignore
-			mockSetup: func(mockFS *portsmocks.MockFileSystem, projectRoot, d3DirAbs, cursorRulesD3DirAbs string) {
-				d3GitignoreDir := d3DirAbs
-				d3GitignorePath := filepath.Join(d3GitignoreDir, ".gitignore")
-				cursorGitignoreDir := filepath.Join(cursorRulesD3DirAbs, "d3")
-				cursorGitignorePath := filepath.Join(cursorGitignoreDir, ".gitignore")
-
-				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(nil).Times(1)
-
-				mockFS.EXPECT().MkdirAll(cursorGitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(nil).Times(1)
+			name:        "create new gitignore (file doesn't exist)",
+			projectRoot: "/testroot",
+			readFileErr: os.ErrNotExist,
+			expectedPatterns: []string{
+				"# D3 generated entries",
+				"# d3",
+				".cursor/rules/d3/",
+				".cursor/rules/d3/*.gen.mdc",
+				".d3/.feature",
+				".d3/features/*/.phase",
 			},
-			expectErr: false,
 		},
 		{
-			name:                "error on MkdirAll for .d3/.gitignore",
-			projectRoot:         "/testproject2",
-			d3DirRel:            ".d3",
-			cursorRulesD3DirRel: ".cursor/rules",
-			mockSetup: func(mockFS *portsmocks.MockFileSystem, projectRoot, d3DirAbs, cursorRulesD3DirAbs string) {
-				d3GitignoreDir := d3DirAbs
-				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(errors.New("mkdir failed for .d3")).Times(1)
-				// WriteFile for .d3/.gitignore and all calls for .cursor/rules/d3/.gitignore should not be called
+			name:        "update existing gitignore without D3 section",
+			projectRoot: "/testroot2",
+			initialContent: []byte(`# Go Binaries
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test coverage
+*.out
+*.test
+
+# IDE / Editor directories
+.idea/
+.vscode/
+`),
+			expectedPatterns: []string{
+				"# Go Binaries",
+				"bin/",
+				"# D3 generated entries",
+				"# d3",
+				".cursor/rules/d3/",
+				".cursor/rules/d3/*.gen.mdc",
+				".d3/.feature",
+				".d3/features/*/.phase",
 			},
-			expectErr: true,
 		},
 		{
-			name:                "error on WriteFile for .d3/.gitignore",
-			projectRoot:         "/testproject3",
-			d3DirRel:            ".d3",
-			cursorRulesD3DirRel: ".cursor/rules",
-			mockSetup: func(mockFS *portsmocks.MockFileSystem, projectRoot, d3DirAbs, cursorRulesD3DirAbs string) {
-				d3GitignoreDir := d3DirAbs
-				d3GitignorePath := filepath.Join(d3GitignoreDir, ".gitignore")
+			name:        "update existing gitignore with D3 section",
+			projectRoot: "/testroot3",
+			initialContent: []byte(`# Go Binaries
+bin/
+*.exe
+*.dll
 
-				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(errors.New("write failed for .d3/.gitignore")).Times(1)
-				// All calls for .cursor/rules/d3/.gitignore should not be called
+# d3
+.cursor/rules/d3/
+.d3/.feature
+# This is an outdated pattern
+.d3/some_old_pattern
+
+# Other entries
+*.log
+`),
+			expectedPatterns: []string{
+				"# Go Binaries",
+				"bin/",
+				"# D3 generated entries",
+				"# d3",
+				".cursor/rules/d3/",
+				".cursor/rules/d3/*.gen.mdc", // New pattern should be added
+				".d3/.feature",
+				".d3/features/*/.phase", // New pattern should be added
+				"# Other entries",
+				"*.log",
 			},
-			expectErr: true,
+			// These patterns should NOT be in the output
+			// .d3/some_old_pattern (should be replaced)
 		},
 		{
-			name:                "error on MkdirAll for .cursor/rules/d3/.gitignore",
-			projectRoot:         "/testproject4",
-			d3DirRel:            ".d3",
-			cursorRulesD3DirRel: ".cursor/rules",
-			mockSetup: func(mockFS *portsmocks.MockFileSystem, projectRoot, d3DirAbs, cursorRulesD3DirAbs string) {
-				d3GitignoreDir := d3DirAbs
-				d3GitignorePath := filepath.Join(d3GitignoreDir, ".gitignore")
-				cursorGitignoreDir := filepath.Join(cursorRulesD3DirAbs, "d3")
-
-				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(nil).Times(1)
-
-				mockFS.EXPECT().MkdirAll(cursorGitignoreDir, os.FileMode(0755)).Return(errors.New("mkdir failed for .cursor/rules/d3")).Times(1)
-				// WriteFile for .cursor/rules/d3/.gitignore should not be called
-			},
-			expectErr: true,
+			name:         "error on WriteFile",
+			projectRoot:  "/testroot4",
+			writeFileErr: errors.New("write error"),
+			expectErr:    true,
 		},
 		{
-			name:                "error on WriteFile for .cursor/rules/d3/.gitignore",
-			projectRoot:         "/testproject5",
-			d3DirRel:            ".d3",
-			cursorRulesD3DirRel: ".cursor/rules",
-			mockSetup: func(mockFS *portsmocks.MockFileSystem, projectRoot, d3DirAbs, cursorRulesD3DirAbs string) {
-				d3GitignoreDir := d3DirAbs
-				d3GitignorePath := filepath.Join(d3GitignoreDir, ".gitignore")
-				cursorGitignoreDir := filepath.Join(cursorRulesD3DirAbs, "d3")
-				cursorGitignorePath := filepath.Join(cursorGitignoreDir, ".gitignore")
-
-				mockFS.EXPECT().MkdirAll(d3GitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(d3GitignorePath, []byte(newGitignoreContent), os.FileMode(0644)).Return(nil).Times(1)
-
-				mockFS.EXPECT().MkdirAll(cursorGitignoreDir, os.FileMode(0755)).Return(nil).Times(1)
-				mockFS.EXPECT().WriteFile(cursorGitignorePath, []byte("*.gen.mdc\n"), os.FileMode(0644)).Return(errors.New("write failed for .cursor/rules/d3/.gitignore")).Times(1)
-			},
-			expectErr: true,
+			name:        "error on ReadFile (not os.ErrNotExist)",
+			projectRoot: "/testroot5",
+			readFileErr: errors.New("read error"),
+			expectErr:   true,
 		},
 	}
 
@@ -291,19 +292,53 @@ func TestEnsureD3GitignoreEntries(t *testing.T) {
 			ctrl := gomock.NewController(t)
 			mockFS := portsmocks.NewMockFileSystem(ctrl)
 
-			// Construct absolute paths for the test setup
-			d3DirAbs := filepath.Join(tt.projectRoot, tt.d3DirRel)
-			cursorRulesD3DirAbs := filepath.Join(tt.projectRoot, tt.cursorRulesD3DirRel)
+			gitignorePath := filepath.Join(tt.projectRoot, ".gitignore")
 
-			if tt.mockSetup != nil {
-				tt.mockSetup(mockFS, tt.projectRoot, d3DirAbs, cursorRulesD3DirAbs)
+			// Set up ReadFile expectation
+			readFileContent := tt.initialContent
+			readFileError := tt.readFileErr
+			mockFS.EXPECT().ReadFile(gitignorePath).Return(readFileContent, readFileError).Times(1)
+
+			// Set up WriteFile expectation
+			if !tt.expectErr || tt.writeFileErr != nil {
+				mockFS.EXPECT().WriteFile(gitignorePath, gomock.Any(), os.FileMode(0644)).
+					DoAndReturn(func(_ string, data []byte, _ os.FileMode) error {
+						if tt.writeFileErr == nil { // If WriteFile itself is not mocked to error
+							content := string(data)
+
+							// Check that all expected patterns are in the file
+							for _, pattern := range tt.expectedPatterns {
+								if !strings.Contains(content, pattern) {
+									t.Errorf("Expected pattern %q not found in gitignore content:\n%s", pattern, content)
+								}
+							}
+
+							// If this is an update case, make sure we preserved the existing content outside the D3 section
+							if tt.initialContent != nil && len(tt.initialContent) > 0 {
+								// Check that non-D3 sections from the initial content are preserved
+								// Here we check for a few key lines that should be preserved
+								for _, line := range strings.Split(string(tt.initialContent), "\n") {
+									trimmed := strings.TrimSpace(line)
+									// Skip empty lines, D3 section marker, or lines in the D3 section
+									if trimmed == "" || trimmed == "# d3" || strings.HasPrefix(trimmed, ".d3/") || strings.HasPrefix(trimmed, ".cursor/rules/d3") {
+										continue
+									}
+									// Any other line should be preserved
+									if !strings.Contains(content, line) {
+										t.Errorf("Expected line %q to be preserved in gitignore content", line)
+									}
+								}
+							}
+						}
+						return tt.writeFileErr
+					}).Times(1)
 			}
 
 			op := NewDefaultFileOperator()
-			err := op.EnsureD3GitignoreEntries(mockFS, d3DirAbs, cursorRulesD3DirAbs, tt.projectRoot)
+			err := op.EnsureRootGitignoreEntries(mockFS, tt.projectRoot)
 
 			if (err != nil) != tt.expectErr {
-				t.Errorf("EnsureD3GitignoreEntries() error = %v, wantErr %v", err, tt.expectErr)
+				t.Errorf("EnsureRootGitignoreEntries() error = %v, wantErr %v", err, tt.expectErr)
 			}
 		})
 	}

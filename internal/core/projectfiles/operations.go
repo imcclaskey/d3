@@ -1,11 +1,13 @@
 package projectfiles
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings" // Uncommented and to be used
+	"strings"
 
 	"github.com/imcclaskey/d3/internal/core/ports"
 )
@@ -33,6 +35,9 @@ const (
 	D3ServerName     = "d3"
 	D3Command        = "d3"
 	D3ServeArgPrefix = "serve --workdir "
+
+	// Constants for gitignore management
+	D3GitignoreSectionMarker = "# d3"
 )
 
 // DefaultFileOperator implements file operations for project initialization.
@@ -91,41 +96,107 @@ func (op *DefaultFileOperator) EnsureMCPJSON(fs ports.FileSystem, projectRoot st
 	return nil
 }
 
-// EnsureD3GitignoreEntries creates .gitignore files in specific d3 directories.
-// It takes d3Dir and cursorRulesDir as absolute paths.
-func (op *DefaultFileOperator) EnsureD3GitignoreEntries(fs ports.FileSystem, d3DirAbs, cursorRulesD3DirAbs, projectRootAbs string) error {
-	type gitignoreTarget struct {
-		path    string // Relative to project root, for constructing full path
-		content string
+// EnsureRootGitignoreEntries manages D3-specific entries in the root .gitignore file.
+// It reads the existing file if present, preserves user entries, and either updates
+// or creates a D3-specific section marked with "# d3".
+func (op *DefaultFileOperator) EnsureRootGitignoreEntries(fs ports.FileSystem, projectRootAbs string) error {
+	gitignorePath := filepath.Join(projectRootAbs, ".gitignore")
+
+	// These are the patterns we want to ensure are in the gitignore file
+	d3Patterns := []string{
+		".cursor/rules/d3/",          // d3 rules directory
+		".cursor/rules/d3/*.gen.mdc", // generated rule files
+		".d3/.feature",               // active feature marker
+		".d3/features/*/.phase",      // phase markers
 	}
 
-	targets := []gitignoreTarget{
-		{
-			// Path for .d3/.gitignore, ensure it's relative to project root for joining
-			path:    filepath.Join(strings.TrimPrefix(d3DirAbs, projectRootAbs+string(filepath.Separator)), ".gitignore"),
-			content: ".feature\nfeatures/*/.phase\n",
-		},
-		{
-			// Path for .cursor/rules/d3/.gitignore, ensure it's relative for joining
-			path:    filepath.Join(strings.TrimPrefix(cursorRulesD3DirAbs, projectRootAbs+string(filepath.Separator)), "d3", ".gitignore"),
-			content: "*.gen.mdc\n",
-		},
+	// Check if the gitignore file exists
+	fileExists := false
+	data, err := fs.ReadFile(gitignorePath)
+	if err == nil {
+		fileExists = true
+	} else if !os.IsNotExist(err) {
+		// Some error other than "file doesn't exist"
+		return fmt.Errorf("failed to read .gitignore: %w", err)
 	}
 
-	for _, target := range targets {
-		// Construct full path from projectRoot and the relative target path
-		fullPath := filepath.Join(projectRootAbs, target.path)
-		dir := filepath.Dir(fullPath)
+	var newContent []byte
 
-		if err := fs.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s for .gitignore: %w", dir, err)
+	if !fileExists {
+		// File doesn't exist, create a new one with our patterns
+		var buffer bytes.Buffer
+		buffer.WriteString(D3GitignoreSectionMarker + "\n")
+		for _, pattern := range d3Patterns {
+			buffer.WriteString(pattern + "\n")
 		}
-
-		if err := fs.WriteFile(fullPath, []byte(target.content), 0644); err != nil {
-			return fmt.Errorf("failed to write %s: %w", fullPath, err)
-		}
+		newContent = buffer.Bytes()
+	} else {
+		// File exists, update or add the D3 section
+		newContent = op.updateGitignoreContent(data, d3Patterns)
 	}
+
+	// Write back the file
+	if err := fs.WriteFile(gitignorePath, newContent, 0644); err != nil {
+		return fmt.Errorf("failed to write .gitignore: %w", err)
+	}
+
 	return nil
+}
+
+// updateGitignoreContent handles updating an existing .gitignore file
+// by either updating the D3 section or appending it
+func (op *DefaultFileOperator) updateGitignoreContent(existingContent []byte, d3Patterns []string) []byte {
+	scanner := bufio.NewScanner(bytes.NewReader(existingContent))
+	var outputBuffer bytes.Buffer
+
+	// State tracking
+	inD3Section := false
+	foundD3Section := false
+	lineCount := 0
+
+	// Process each line
+	for scanner.Scan() {
+		line := scanner.Text()
+		lineCount++
+
+		// Check if this is the start of a D3 section
+		if strings.TrimSpace(line) == D3GitignoreSectionMarker {
+			inD3Section = true
+			foundD3Section = true
+
+			// Write the marker and our patterns
+			outputBuffer.WriteString(D3GitignoreSectionMarker + "\n")
+			for _, pattern := range d3Patterns {
+				outputBuffer.WriteString(pattern + "\n")
+			}
+		} else if inD3Section {
+			// Skip lines in the D3 section (we've already written our updated patterns)
+			// Check if we're leaving the D3 section (blank line or new section marker)
+			if strings.TrimSpace(line) == "" || (strings.HasPrefix(line, "#") && !strings.Contains(line, "D3")) {
+				inD3Section = false
+				outputBuffer.WriteString(line + "\n") // Include the line that ended the section
+			}
+		} else {
+			// Not in D3 section, copy the line as is
+			outputBuffer.WriteString(line + "\n")
+		}
+	}
+
+	// If we didn't find a D3 section, append one at the end
+	if !foundD3Section {
+		// Add a blank line if the file doesn't end with one
+		if lineCount > 0 && !strings.HasSuffix(string(existingContent), "\n\n") {
+			outputBuffer.WriteString("\n")
+		}
+
+		// Add our D3 section
+		outputBuffer.WriteString(D3GitignoreSectionMarker + "\n")
+		for _, pattern := range d3Patterns {
+			outputBuffer.WriteString(pattern + "\n")
+		}
+	}
+
+	return outputBuffer.Bytes()
 }
 
 // EnsureProjectFiles creates the necessary project files in the .d3 directory

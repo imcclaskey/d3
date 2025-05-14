@@ -35,3 +35,10 @@ Thumbs.db
 # Cursor internal files (already ignored in .cursor/rules/d3/.gitignore, but good practice)
 /.cursor/out/
 /.cursor/debug/ 
+
+# D3 generated entries - DO NOT EDIT THIS SECTION
+# d3
+.cursor/rules/d3/
+.cursor/rules/d3/*.gen.mdc
+.d3/.feature
+.d3/features/*/.phase

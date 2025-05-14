@@ -183,7 +183,7 @@ func TestProject_Init(t *testing.T) {
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
-				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureRootGitignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureProjectFiles(mockFS, proj.state.D3Dir).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(nil).Times(1) // Ensure phase.None is string
 				mockFeature.EXPECT().ClearActiveFeature().Return(nil).Times(1)
@@ -201,7 +201,7 @@ func TestProject_Init(t *testing.T) {
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
-				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureRootGitignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureProjectFiles(mockFS, proj.state.D3Dir).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(nil).Times(1)
 				mockFeature.EXPECT().ClearActiveFeature().Return(nil).Times(1) // This is the one that is actually called when (performedClean || !originalIsCurrentlyInitialized)
@@ -219,7 +219,7 @@ func TestProject_Init(t *testing.T) {
 					mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1),
-					mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1),
+					mockFileOp.EXPECT().EnsureRootGitignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1),
 					mockFileOp.EXPECT().EnsureProjectFiles(mockFS, proj.state.D3Dir).Return(nil).Times(1),
 					// Refresh specific calls
 					mockFeature.EXPECT().GetActiveFeature().Return("", nil).Times(1),
@@ -243,7 +243,7 @@ func TestProject_Init(t *testing.T) {
 					mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1),
 					mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1),
-					mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1),
+					mockFileOp.EXPECT().EnsureRootGitignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1),
 					mockFileOp.EXPECT().EnsureProjectFiles(mockFS, proj.state.D3Dir).Return(nil).Times(1),
 					// Refresh specific calls -  Order corrected here
 					mockFeature.EXPECT().GetActiveFeature().Return("active-feature", nil).Times(1),
@@ -283,7 +283,7 @@ func TestProject_Init(t *testing.T) {
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
-				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureRootGitignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureProjectFiles(mockFS, proj.state.D3Dir).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(nil).Times(1)
 				mockFeature.EXPECT().ClearActiveFeature().Return(fmt.Errorf("clear active feature failed")).Times(1)
@@ -298,7 +298,7 @@ func TestProject_Init(t *testing.T) {
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
-				mockFileOp.EXPECT().EnsureD3GitignoreEntries(mockFS, proj.state.D3Dir, proj.state.CursorRulesDir, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureRootGitignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
 				mockFileOp.EXPECT().EnsureProjectFiles(mockFS, proj.state.D3Dir).Return(nil).Times(1)
 				mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(fmt.Errorf("rules refresh failed")).Times(1)
 			},

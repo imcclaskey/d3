@@ -39,6 +39,10 @@ type PhaseServicer interface {
 // FileOperator defines operations for project file manipulations needed by ProjectService.
 type FileOperator interface {
 	EnsureMCPJSON(fs ports.FileSystem, projectRoot string) error
-	EnsureD3GitignoreEntries(fs ports.FileSystem, d3DirAbs, cursorRulesD3DirAbs, projectRootAbs string) error
+
+	// EnsureRootGitignoreEntries manages D3-specific entries in the root .gitignore file.
+	// It preserves user entries and maintains the D3 section of the file.
+	EnsureRootGitignoreEntries(fs ports.FileSystem, projectRootAbs string) error
+
 	EnsureProjectFiles(fs ports.FileSystem, d3DirAbs string) error
 }

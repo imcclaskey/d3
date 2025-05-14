@@ -182,8 +182,8 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 		return nil, fmt.Errorf("failed to ensure mcp.json: %w", err)
 	}
 
-	if err = p.fileOp.EnsureD3GitignoreEntries(p.fs, p.state.D3Dir, p.state.CursorRulesDir, p.state.ProjectRoot); err != nil {
-		return nil, fmt.Errorf("failed to update d3-specific .gitignore files: %w", err)
+	if err = p.fileOp.EnsureRootGitignoreEntries(p.fs, p.state.ProjectRoot); err != nil {
+		return nil, fmt.Errorf("failed to update root .gitignore file: %w", err)
 	}
 
 	if err = p.fileOp.EnsureProjectFiles(p.fs, p.state.D3Dir); err != nil {

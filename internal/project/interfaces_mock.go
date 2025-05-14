@@ -293,20 +293,6 @@ func (m *MockFileOperator) EXPECT() *MockFileOperatorMockRecorder {
 	return m.recorder
 }
 
-// EnsureD3GitignoreEntries mocks base method.
-func (m *MockFileOperator) EnsureD3GitignoreEntries(arg0 ports.FileSystem, arg1, arg2, arg3 string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EnsureD3GitignoreEntries", arg0, arg1, arg2, arg3)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// EnsureD3GitignoreEntries indicates an expected call of EnsureD3GitignoreEntries.
-func (mr *MockFileOperatorMockRecorder) EnsureD3GitignoreEntries(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureD3GitignoreEntries", reflect.TypeOf((*MockFileOperator)(nil).EnsureD3GitignoreEntries), arg0, arg1, arg2, arg3)
-}
-
 // EnsureMCPJSON mocks base method.
 func (m *MockFileOperator) EnsureMCPJSON(arg0 ports.FileSystem, arg1 string) error {
 	m.ctrl.T.Helper()
@@ -333,4 +319,18 @@ func (m *MockFileOperator) EnsureProjectFiles(arg0 ports.FileSystem, arg1 string
 func (mr *MockFileOperatorMockRecorder) EnsureProjectFiles(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureProjectFiles", reflect.TypeOf((*MockFileOperator)(nil).EnsureProjectFiles), arg0, arg1)
+}
+
+// EnsureRootGitignoreEntries mocks base method.
+func (m *MockFileOperator) EnsureRootGitignoreEntries(arg0 ports.FileSystem, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnsureRootGitignoreEntries", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnsureRootGitignoreEntries indicates an expected call of EnsureRootGitignoreEntries.
+func (mr *MockFileOperatorMockRecorder) EnsureRootGitignoreEntries(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnsureRootGitignoreEntries", reflect.TypeOf((*MockFileOperator)(nil).EnsureRootGitignoreEntries), arg0, arg1)
 }
