@@ -99,7 +99,7 @@ d3 primarily interacts via its MCP server, but retains a few core CLI commands.
 
 | Command                       | Description                                                      |
 |-------------------------------|------------------------------------------------------------------|
-| `d3 init [--clean/refresh]` | Initializes or updates the d3 project. `--clean` removes existing `.d3` and re-initializes. `--refresh` updates configuration in an existing project. |
+| `d3 init` | Initializes or updates the d3 project. `--clean` removes existing `.d3` and re-initializes. `--refresh` updates configuration in an existing project. |
 | `d3 feature create <n>`    | Create a new feature and set it as the current context           |
 | `d3 feature enter <n>`     | Enter a feature context, resuming its last known phase             |
 | `d3 phase move <p>`        | Move the current feature to a different phase (define, design, deliver) |
