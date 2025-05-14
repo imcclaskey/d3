@@ -28,7 +28,6 @@ d3 is a CLI tool and Model Context Protocol (MCP) server designed to orchestrate
 
 ### Prerequisites
 
-- Go 1.21 or higher (for building from source)
 - An MCP-compatible client (like [Cursor IDE](https://cursor.sh/))
 
 ### Installation
@@ -43,27 +42,13 @@ d3 is a CLI tool and Model Context Protocol (MCP) server designed to orchestrate
    - Linux/ARM: `d3-linux-arm64`
    - Windows: `d3-windows-amd64.exe`
 3. Make the binary executable (Linux/macOS):
-
    ```bash
    chmod +x d3-darwin-arm64  # Example for Mac with Apple Silicon
    ```
-
 4. Move the binary to a location in your PATH (Linux/macOS):
-
    ```bash
    mv d3-darwin-arm64 /usr/local/bin/d3
    ```
-
-#### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/imcclaskey/d3.git
-cd d3
-
-# Build and install
-make install
-```
 
 ### Basic Workflow
 
