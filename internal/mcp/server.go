@@ -27,7 +27,7 @@ func NewServer(workspaceRoot string) *server.MCPServer {
 
 	// sessionSvc := session.NewStorage(fs) // REMOVED: session.Storage and NewStorage removed
 	featureSvc := feature.NewService(workspaceRoot, featuresDir, d3Dir, fs)
-	ruleGenerator := rules.NewRuleGenerator()
+	ruleGenerator := rules.NewRuleGenerator(workspaceRoot, fs)
 	rulesSvc := rules.NewService(workspaceRoot, cursorRulesDir, ruleGenerator, fs)
 	phaseSvc := phase.NewService(fs)
 	fileOp := projectfiles.NewDefaultFileOperator()

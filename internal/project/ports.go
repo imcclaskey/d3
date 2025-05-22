@@ -29,6 +29,7 @@ type FeatureServicer interface {
 type RulesServicer interface {
 	RefreshRules(feature string, phaseStr string) error
 	ClearGeneratedRules() error
+	InitCustomRulesDir() error
 }
 
 // PhaseServicer defines the interface for phase management operations.

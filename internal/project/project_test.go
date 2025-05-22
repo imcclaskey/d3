@@ -155,8 +155,9 @@ func TestProject_RequiresInitialized(t *testing.T) {
 
 func TestProject_Init(t *testing.T) {
 	type args struct {
-		clean   bool
-		refresh bool
+		clean       bool
+		refresh     bool
+		customRules bool
 	}
 	tests := []struct {
 		name          string
@@ -168,7 +169,7 @@ func TestProject_Init(t *testing.T) {
 	}{
 		{
 			name: "standard init on existing project (no flags)",
-			args: args{clean: false, refresh: false},
+			args: args{clean: false, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 			},
@@ -177,7 +178,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "standard init on new project (no flags)",
-			args: args{clean: false, refresh: false},
+			args: args{clean: false, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
@@ -194,7 +195,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "initialized, clean init",
-			args: args{clean: true, refresh: false},
+			args: args{clean: true, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 				mockFS.EXPECT().RemoveAll(proj.state.D3Dir).Return(nil).Times(1)
@@ -213,7 +214,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "refresh on new project",
-			args: args{clean: false, refresh: true},
+			args: args{clean: false, refresh: true, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1) // Determines originalIsCurrentlyInitialized = false
 				gomock.InOrder(
@@ -238,7 +239,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "refresh on existing project",
-			args: args{clean: false, refresh: true},
+			args: args{clean: false, refresh: true, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1) // Determines originalIsCurrentlyInitialized = true
 				gomock.InOrder(
@@ -262,7 +263,7 @@ func TestProject_Init(t *testing.T) {
 		// ... other error cases for Init remain largely the same, ensuring RefreshRules("", string(phase.None)) is used ...
 		{
 			name: "error on RemoveAll during clean init",
-			args: args{clean: true, refresh: false},
+			args: args{clean: true, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(testutil.MockFileInfo{FIsDir: true}, nil).Times(1)
 				mockFS.EXPECT().RemoveAll(proj.state.D3Dir).Return(fmt.Errorf("failed to remove")).Times(1)
@@ -272,7 +273,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "error on MkdirAll for .d3",
-			args: args{clean: false, refresh: false},
+			args: args{clean: false, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(fmt.Errorf("failed to mkdir .d3")).Times(1)
@@ -281,7 +282,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "error on featureSvc.ClearActiveFeature",
-			args: args{clean: false, refresh: false},
+			args: args{clean: false, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
@@ -297,7 +298,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "error on rules.RefreshRules",
-			args: args{clean: false, refresh: false},
+			args: args{clean: false, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
@@ -312,7 +313,7 @@ func TestProject_Init(t *testing.T) {
 		},
 		{
 			name: "error on cursorignore",
-			args: args{clean: false, refresh: false},
+			args: args{clean: false, refresh: false, customRules: false},
 			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
 				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
 				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
@@ -326,6 +327,24 @@ func TestProject_Init(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "init with custom rules",
+			args: args{clean: false, refresh: false, customRules: true},
+			setupMocks: func(proj *Project, mockFS *portsmocks.MockFileSystem, mockRules *MockRulesServicer, mockPhase *MockPhaseServicer, mockFileOp *MockFileOperator, mockFeature *MockFeatureServicer) {
+				mockFS.EXPECT().Stat(proj.state.D3Dir).Return(nil, os.ErrNotExist).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.D3Dir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFS.EXPECT().MkdirAll(proj.state.FeaturesDir, os.FileMode(0755)).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureMCPJSON(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureRootGitignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureRootCursorignoreEntries(mockFS, proj.state.ProjectRoot).Return(nil).Times(1)
+				mockFileOp.EXPECT().EnsureProjectFiles(mockFS, proj.state.D3Dir).Return(nil).Times(1)
+				mockRules.EXPECT().InitCustomRulesDir().Return(nil).Times(1)
+				mockRules.EXPECT().RefreshRules("", string(phase.None)).Return(nil).Times(1)
+				mockFeature.EXPECT().ClearActiveFeature().Return(nil).Times(1)
+			},
+			wantErr:       false,
+			wantResultMsg: "Project initialized successfully. Custom rules directory created and populated with default templates. Cursor rules have been updated.",
+		},
 	}
 
 	for _, tt := range tests {
@@ -337,7 +356,7 @@ func TestProject_Init(t *testing.T) {
 				tt.setupMocks(proj, mockFS, mockRules, mockPhase, mockFileOp, mockFeature)
 			}
 
-			result, err := proj.Init(tt.args.clean, tt.args.refresh)
+			result, err := proj.Init(tt.args.clean, tt.args.refresh, tt.args.customRules)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Init() error = %v, wantErr %v", err, tt.wantErr)

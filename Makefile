@@ -20,6 +20,13 @@ NEW_VERSION_MAJOR=$(shell expr $(VERSION_MAJOR) + 1).0.0
 # Version flags
 VERSION_FLAGS=-ldflags "-X github.com/imcclaskey/d3/internal/version.Version=$(VERSION)"
 
+# Determine OS for executable suffix
+GOOS_OUTPUT = $(shell go env GOOS)
+EXTENSION =
+ifeq ($(GOOS_OUTPUT),windows)
+    EXTENSION = .exe
+endif
+
 # Print current version
 print-version:
 	@echo "Current version: $(VERSION)"
@@ -27,7 +34,7 @@ print-version:
 # Build the binary
 build:
 	mkdir -p $(OUTPUT_DIR)
-	go build $(VERSION_FLAGS) -o $(OUTPUT_DIR)/$(BINARY_NAME) ./d3
+	go build $(VERSION_FLAGS) -o $(OUTPUT_DIR)/$(BINARY_NAME)$(EXTENSION) ./d3
 
 # Install the binary
 install:
@@ -39,6 +46,11 @@ COVERAGE_FILE=coverage.out
 test:
 	@rm -f $(COVERAGE_FILE)
 	go test -v -race -cover -covermode=atomic -coverprofile=$(COVERAGE_FILE) ./...
+
+# Run tests without race detector
+test-no-race:
+	@rm -f $(COVERAGE_FILE)
+	go test -v -cover -coverprofile=$(COVERAGE_FILE) ./...
 
 # Generate coverage summary
 coverage-summary:

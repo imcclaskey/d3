@@ -111,18 +111,18 @@ func (mr *MockProjectServiceMockRecorder) ExitFeature(arg0 interface{}) *gomock.
 }
 
 // Init mocks base method.
-func (m *MockProjectService) Init(arg0, arg1 bool) (*Result, error) {
+func (m *MockProjectService) Init(arg0, arg1, arg2 bool) (*Result, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Init", arg0, arg1)
+	ret := m.ctrl.Call(m, "Init", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*Result)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Init indicates an expected call of Init.
-func (mr *MockProjectServiceMockRecorder) Init(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockProjectServiceMockRecorder) Init(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockProjectService)(nil).Init), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockProjectService)(nil).Init), arg0, arg1, arg2)
 }
 
 // IsInitialized mocks base method.

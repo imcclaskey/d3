@@ -71,9 +71,9 @@ func NewPhaseMoveCommand() *cobra.Command {
 
 			fs := ports.RealFileSystem{}
 			featureSvc := feature.NewService(cfg.WorkspaceRoot, cfg.FeaturesDir, cfg.D3Dir, fs)
-			ruleGenerator := rules.NewRuleGenerator()
-			rulesSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
 			phaseSvc := phase.NewService(fs)
+			ruleGenerator := rules.NewRuleGenerator(cfg.WorkspaceRoot, fs)
+			rulesSvc := rules.NewService(cfg.WorkspaceRoot, cfg.CursorRulesDir, ruleGenerator, fs)
 			fileOp := projectfiles.NewDefaultFileOperator()
 
 			cmdRunner.projectSvc = project.New(cfg.WorkspaceRoot, fs, featureSvc, rulesSvc, phaseSvc, fileOp)

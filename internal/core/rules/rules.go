@@ -19,19 +19,72 @@ type Generator interface {
 }
 
 // RuleGenerator generates rule content
-type RuleGenerator struct{}
+type RuleGenerator struct {
+	projectRoot string
+	fs          ports.FileSystem
+}
 
 // NewRuleGenerator creates a new rule generator
-func NewRuleGenerator() *RuleGenerator {
-	return &RuleGenerator{}
+func NewRuleGenerator(projectRoot string, fs ports.FileSystem) *RuleGenerator {
+	return &RuleGenerator{
+		projectRoot: projectRoot,
+		fs:          fs,
+	}
+}
+
+// getCustomTemplateDir returns the path to the custom templates directory
+func (g *RuleGenerator) getCustomTemplateDir() string {
+	if g.projectRoot == "" {
+		return ""
+	}
+	return filepath.Join(g.projectRoot, ".d3", "rules")
+}
+
+// tryReadCustomTemplate attempts to read a custom template file
+func (g *RuleGenerator) tryReadCustomTemplate(templateName string) (string, bool, error) {
+	if g.fs == nil || g.projectRoot == "" {
+		return "", false, nil
+	}
+
+	customDir := g.getCustomTemplateDir()
+	templatePath := filepath.Join(customDir, templateName+".md")
+
+	// Check if the template file exists
+	_, err := g.fs.Stat(templatePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("error checking custom template %s: %w", templatePath, err)
+	}
+
+	// Read the template file
+	content, err := g.fs.ReadFile(templatePath)
+	if err != nil {
+		return "", false, fmt.Errorf("error reading custom template %s: %w", templatePath, err)
+	}
+
+	return string(content), true, nil
 }
 
 // GeneratePhaseContent generates rule content for a feature and phase
 func (g *RuleGenerator) GeneratePhaseContent(feature, phase string) (string, error) {
-	// Only use embedded templates
-	template, exists := Templates[phase]
+	var template string
+	var exists bool
+	var err error
+
+	// Try to use custom template first
+	template, exists, err = g.tryReadCustomTemplate(phase)
+	if err != nil {
+		return "", err
+	}
+
+	// Fall back to embedded template if custom not found
 	if !exists {
-		return "", fmt.Errorf("template for phase '%s' not found", phase)
+		template, exists = Templates[phase]
+		if !exists {
+			return "", fmt.Errorf("template for phase '%s' not found", phase)
+		}
 	}
 
 	// Render template with replacements
@@ -44,10 +97,22 @@ func (g *RuleGenerator) GeneratePhaseContent(feature, phase string) (string, err
 
 // GenerateCoreContent generates the core rule content with the current context
 func (g *RuleGenerator) GenerateCoreContent(feature, phase string) (string, error) {
-	// Load core template
-	coreTemplate, exists := Templates["core"]
+	var coreTemplate string
+	var exists bool
+	var err error
+
+	// Try to use custom core template first
+	coreTemplate, exists, err = g.tryReadCustomTemplate("core")
+	if err != nil {
+		return "", err
+	}
+
+	// Fall back to embedded template if custom not found
 	if !exists {
-		return "", fmt.Errorf("core template not found")
+		coreTemplate, exists = Templates["core"]
+		if !exists {
+			return "", fmt.Errorf("core template not found")
+		}
 	}
 
 	// Generate the prefix for the current context
@@ -73,15 +138,18 @@ func (g *RuleGenerator) GeneratePrefix(feature, phase string) string {
 type Service struct {
 	projectRoot    string
 	cursorRulesDir string
+	customRulesDir string
 	generator      Generator
 	fs             ports.FileSystem
 }
 
 // NewService creates a new rules service
 func NewService(projectRoot, cursorRulesDir string, generator Generator, fs ports.FileSystem) *Service {
+	customRulesDir := filepath.Join(projectRoot, ".d3", "rules")
 	return &Service{
 		projectRoot:    projectRoot,
 		cursorRulesDir: cursorRulesDir,
+		customRulesDir: customRulesDir,
 		generator:      generator,
 		fs:             fs,
 	}
@@ -164,4 +232,38 @@ func (s *Service) ClearGeneratedRules() error {
 	}
 
 	return firstErr // Return the first error encountered, or nil if all succeeded
+}
+
+// InitCustomRulesDir initializes the custom rules directory with copies of the default templates
+func (s *Service) InitCustomRulesDir() error {
+	// Ensure custom rules directory exists
+	if err := s.fs.MkdirAll(s.customRulesDir, 0755); err != nil {
+		return fmt.Errorf("failed to create custom rules directory: %w", err)
+	}
+
+	// Process templates in a deterministic order to make testing more reliable
+	templateOrder := []string{"core", "define", "design", "deliver"}
+	for _, templateName := range templateOrder {
+		templateContent, exists := Templates[templateName]
+		if !exists {
+			continue // Skip if template doesn't exist in the map
+		}
+
+		templatePath := filepath.Join(s.customRulesDir, templateName+".md")
+
+		// Skip if file already exists to avoid overwriting user modifications
+		if _, err := s.fs.Stat(templatePath); err == nil {
+			fmt.Fprintf(os.Stderr, "Custom template %s already exists, skipping\n", templatePath)
+			continue
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("error checking template file %s: %w", templatePath, err)
+		}
+
+		// Write the template file
+		if err := s.fs.WriteFile(templatePath, []byte(templateContent), 0644); err != nil {
+			return fmt.Errorf("failed to write template file %s: %w", templatePath, err)
+		}
+	}
+
+	return nil
 }

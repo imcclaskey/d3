@@ -67,7 +67,7 @@ func (r *Result) FormatMCP() string {
 // ProjectService defines the interface for project operations used by CLI and MCP.
 // This allows for mocking the entire project service in tests for commands/tools.
 type ProjectService interface {
-	Init(clean bool, refresh bool) (*Result, error)
+	Init(clean bool, refresh bool, customRules bool) (*Result, error)
 	CreateFeature(ctx context.Context, featureName string) (*Result, error)
 	ChangePhase(ctx context.Context, targetPhase phase.Phase) (*Result, error)
 	EnterFeature(ctx context.Context, featureName string) (*Result, error)
@@ -144,7 +144,7 @@ func (p *Project) RequiresInitialized() error {
 }
 
 // Init initializes or refreshes the project
-func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
+func (p *Project) Init(clean bool, refresh bool, customRules bool) (*Result, error) {
 	originalIsCurrentlyInitialized := p.IsInitialized()
 	actionMessage := "Project initialized successfully." // Default message
 	performedClean := false
@@ -192,6 +192,14 @@ func (p *Project) Init(clean bool, refresh bool) (*Result, error) {
 
 	if err = p.fileOp.EnsureProjectFiles(p.fs, p.state.D3Dir); err != nil {
 		return nil, fmt.Errorf("failed to create project files: %w", err)
+	}
+
+	// Initialize custom rules directory if requested
+	if customRules {
+		if err := p.rules.InitCustomRulesDir(); err != nil {
+			return nil, fmt.Errorf("failed to initialize custom rules directory: %w", err)
+		}
+		actionMessage += " Custom rules directory created and populated with default templates."
 	}
 
 	featureName := ""

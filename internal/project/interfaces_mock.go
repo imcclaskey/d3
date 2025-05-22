@@ -219,6 +219,20 @@ func (mr *MockRulesServicerMockRecorder) ClearGeneratedRules() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearGeneratedRules", reflect.TypeOf((*MockRulesServicer)(nil).ClearGeneratedRules))
 }
 
+// InitCustomRulesDir mocks base method.
+func (m *MockRulesServicer) InitCustomRulesDir() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InitCustomRulesDir")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InitCustomRulesDir indicates an expected call of InitCustomRulesDir.
+func (mr *MockRulesServicerMockRecorder) InitCustomRulesDir() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitCustomRulesDir", reflect.TypeOf((*MockRulesServicer)(nil).InitCustomRulesDir))
+}
+
 // RefreshRules mocks base method.
 func (m *MockRulesServicer) RefreshRules(arg0, arg1 string) error {
 	m.ctrl.T.Helper()

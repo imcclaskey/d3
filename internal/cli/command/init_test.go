@@ -28,46 +28,62 @@ func TestInitCommand_RunLogic(t *testing.T) {
 		name                string
 		cleanFlag           bool
 		refreshFlag         bool
+		customRulesFlag     bool
 		setupMockProjectSvc func(mockSvc *project.MockProjectService)
 		wantErr             bool
 		wantOutputContains  string
 	}{
 		{
-			name:        "successful init, no clean flag",
-			cleanFlag:   false,
-			refreshFlag: false,
+			name:            "successful init, no clean flag",
+			cleanFlag:       false,
+			refreshFlag:     false,
+			customRulesFlag: false,
 			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
-				mockSvc.EXPECT().Init(false, false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
+				mockSvc.EXPECT().Init(false, false, false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
 			},
 			wantErr:            false,
 			wantOutputContains: "Project initialized successfully. Cursor rules have been updated.",
 		},
 		{
-			name:        "successful init, with clean flag",
-			cleanFlag:   true,
-			refreshFlag: false,
+			name:            "successful init, with clean flag",
+			cleanFlag:       true,
+			refreshFlag:     false,
+			customRulesFlag: false,
 			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
-				mockSvc.EXPECT().Init(true, false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
+				mockSvc.EXPECT().Init(true, false, false).Return(project.NewResultWithRulesChanged("Project initialized successfully."), nil).Times(1)
 			},
 			wantErr:            false,
 			wantOutputContains: "Project initialized successfully. Cursor rules have been updated.",
 		},
 		{
-			name:        "successful init, with refresh flag",
-			cleanFlag:   false,
-			refreshFlag: true,
+			name:            "successful init, with refresh flag",
+			cleanFlag:       false,
+			refreshFlag:     true,
+			customRulesFlag: false,
 			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
-				mockSvc.EXPECT().Init(false, true).Return(project.NewResultWithRulesChanged("Project refreshed successfully."), nil).Times(1)
+				mockSvc.EXPECT().Init(false, true, false).Return(project.NewResultWithRulesChanged("Project refreshed successfully."), nil).Times(1)
 			},
 			wantErr:            false,
 			wantOutputContains: "Project refreshed successfully. Cursor rules have been updated.",
 		},
 		{
-			name:        "init fails in projectSvc.Init",
-			cleanFlag:   false,
-			refreshFlag: false,
+			name:            "successful init, with custom-rules flag",
+			cleanFlag:       false,
+			refreshFlag:     false,
+			customRulesFlag: true,
 			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
-				mockSvc.EXPECT().Init(false, false).Return(nil, fmt.Errorf("project init failed")).Times(1)
+				mockSvc.EXPECT().Init(false, false, true).Return(project.NewResultWithRulesChanged("Project initialized successfully. Custom rules directory created and populated with default templates."), nil).Times(1)
+			},
+			wantErr:            false,
+			wantOutputContains: "Project initialized successfully. Custom rules directory created and populated with default templates. Cursor rules have been updated.",
+		},
+		{
+			name:            "init fails in projectSvc.Init",
+			cleanFlag:       false,
+			refreshFlag:     false,
+			customRulesFlag: false,
+			setupMockProjectSvc: func(mockSvc *project.MockProjectService) {
+				mockSvc.EXPECT().Init(false, false, false).Return(nil, fmt.Errorf("project init failed")).Times(1)
 			},
 			wantErr:            true,
 			wantOutputContains: "project init failed",
@@ -84,9 +100,10 @@ func TestInitCommand_RunLogic(t *testing.T) {
 			}
 
 			cmdInstance := &InitCommand{
-				clean:      tt.cleanFlag,
-				refresh:    tt.refreshFlag,
-				projectSvc: mockProjectSvc,
+				clean:       tt.cleanFlag,
+				refresh:     tt.refreshFlag,
+				customRules: tt.customRulesFlag,
+				projectSvc:  mockProjectSvc,
 			}
 
 			var outBuf bytes.Buffer
@@ -94,7 +111,7 @@ func TestInitCommand_RunLogic(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			err := cmdInstance.run(tt.cleanFlag, tt.refreshFlag)
+			err := cmdInstance.run(tt.cleanFlag, tt.refreshFlag, tt.customRulesFlag)
 
 			w.Close()
 			os.Stdout = originalStdout
