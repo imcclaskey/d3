@@ -1,4 +1,4 @@
-.PHONY: build install clean test release version-patch version-minor version-major print-version update-homebrew push-release
+.PHONY: build install clean test release version-patch version-minor version-major print-version update-formula publish-tap push-release
 
 # Binary name
 BINARY_NAME=d3
@@ -40,17 +40,22 @@ build:
 install:
 	go install $(VERSION_FLAGS) ./d3
 
-# Run tests
-# Includes verbose output, race detector, and coverage reporting (atomic mode recommended with race)
+# Detect if we're on Windows to avoid race detector issues with CGO
 COVERAGE_FILE=coverage.out
+GOOS=$(shell go env GOOS)
+ifeq ($(GOOS),windows)
+TEST_RACE_FLAG=
+COVER_MODE=count
+else
+TEST_RACE_FLAG=-race
+COVER_MODE=atomic
+endif
+
+# Run tests
 test:
 	@rm -f $(COVERAGE_FILE)
-	go test -v -race -cover -covermode=atomic -coverprofile=$(COVERAGE_FILE) ./...
-
-# Run tests without race detector
-test-no-race:
-	@rm -f $(COVERAGE_FILE)
-	go test -v -cover -coverprofile=$(COVERAGE_FILE) ./...
+	@echo "Running tests on $(GOOS), race detector: $(if $(TEST_RACE_FLAG),enabled,disabled)"
+	go test -v $(TEST_RACE_FLAG) -cover -covermode=$(COVER_MODE) -coverprofile=$(COVERAGE_FILE) ./...
 
 # Generate coverage summary
 coverage-summary:
@@ -84,52 +89,53 @@ build-all: clean
 	GOOS=windows GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe ./d3
 
 # Version bumping targets
+_bump-version:
+	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(NEW_VERSION)"/g' $(VERSION_FILE)
+	@rm -f $(VERSION_FILE).bak
+	@echo "New version: $$(grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/')"
+	@git add $(VERSION_FILE)
+	@git commit -m "Bump version to $(NEW_VERSION)"
+
 version-patch:
 	@echo "Bumping patch version: $(VERSION) -> $(NEW_VERSION_PATCH)"
-	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(NEW_VERSION_PATCH)"/g' $(VERSION_FILE)
-	@rm -f $(VERSION_FILE).bak
-	@$(MAKE) post-version
+	@$(MAKE) NEW_VERSION=$(NEW_VERSION_PATCH) _bump-version
 
 version-minor:
 	@echo "Bumping minor version: $(VERSION) -> $(NEW_VERSION_MINOR)"
-	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(NEW_VERSION_MINOR)"/g' $(VERSION_FILE)
-	@rm -f $(VERSION_FILE).bak
-	@$(MAKE) post-version
+	@$(MAKE) NEW_VERSION=$(NEW_VERSION_MINOR) _bump-version
 
 version-major:
 	@echo "Bumping major version: $(VERSION) -> $(NEW_VERSION_MAJOR)"
-	@sed -i.bak 's/const Version = "$(VERSION)"/const Version = "$(NEW_VERSION_MAJOR)"/g' $(VERSION_FILE)
-	@rm -f $(VERSION_FILE).bak
-	@$(MAKE) post-version
+	@$(MAKE) NEW_VERSION=$(NEW_VERSION_MAJOR) _bump-version
 
 # Update Homebrew formula
-update-homebrew:
+update-formula: build-all
 	@echo "Updating Homebrew formula with version $(VERSION)"
 	@./scripts/update_formula.sh
 	@echo "Formula updated."
 
-# Common post-version tasks
-post-version: build test
-	@echo "New version: $$(grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/')"
-	@read -p "Commit and tag new version? [y/N] " confirm; \
-	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
-		NEW_VERSION=$$(grep 'const Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)".*/\1/'); \
-		git add $(VERSION_FILE); \
-		git commit -m "Bump version to $$NEW_VERSION"; \
-		echo "Run 'make release' to build binaries and create the release."; \
-	else \
-		echo "Version update cancelled."; \
-	fi
+# Publish to Homebrew tap repository
+publish-tap: update-formula
+	@echo "Publishing to Homebrew tap repository with version $(VERSION)"
+	@./scripts/update_tap.sh
+	@echo "Tap repository updated."
 
-# Create a new release (builds binaries, updates formula, and creates tag)
-release: build-all update-homebrew
+# Create a new release (builds binaries and creates tag)
+release: build-all test
 	@echo "Creating release v$(VERSION)"
-	@git add d3.rb
-	@git commit -m "Update Homebrew formula for v$(VERSION)" || echo "No changes to commit for d3.rb"
 	@git tag -a v$(VERSION) -m "Release v$(VERSION)"
 	@echo "Tag created. Run 'make push-release' to push everything to GitHub."
+	@echo "After pushing the release, run 'make publish-tap' to publish to your Homebrew tap."
 
 # Push new version
 push-release:
 	@echo "Pushing to GitHub..."
-	@git push origin main && git push origin --tags 
+	@git push origin main && git push origin --tags
+
+# Full release workflow
+release-all: release push-release publish-tap
+	@echo "✅ Complete release process finished!"
+	@echo "Version $(VERSION) has been:"
+	@echo "  • Tagged and pushed to GitHub"
+	@echo "  • Released with binaries via GitHub Actions"
+	@echo "  • Published to Homebrew tap" 
