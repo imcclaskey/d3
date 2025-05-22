@@ -1,4 +1,4 @@
-.PHONY: build install clean test release version-patch version-minor version-major print-version update-formula publish-tap push-release
+.PHONY: build install clean test release version-patch version-minor version-major print-version push-release
 
 # Binary name
 BINARY_NAME=d3
@@ -74,19 +74,21 @@ clean:
 	rm -f $(COVERAGE_FILE)
 
 # Build for all platforms
+# Using -trimpath and -buildvcs=false for more reproducible builds
+BUILD_FLAGS=-trimpath -buildvcs=false
 build-all: clean
 	mkdir -p $(BUILD_DIR)
 	
 	# Mac (amd64 and arm64)
-	GOOS=darwin GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 ./d3
-	GOOS=darwin GOARCH=arm64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 ./d3
+	GOOS=darwin GOARCH=amd64 go build $(VERSION_FLAGS) $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 ./d3
+	GOOS=darwin GOARCH=arm64 go build $(VERSION_FLAGS) $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 ./d3
 	
 	# Linux (amd64 and arm64)
-	GOOS=linux GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 ./d3
-	GOOS=linux GOARCH=arm64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 ./d3
+	GOOS=linux GOARCH=amd64 go build $(VERSION_FLAGS) $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 ./d3
+	GOOS=linux GOARCH=arm64 go build $(VERSION_FLAGS) $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 ./d3
 	
 	# Windows (amd64)
-	GOOS=windows GOARCH=amd64 go build $(VERSION_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe ./d3
+	GOOS=windows GOARCH=amd64 go build $(VERSION_FLAGS) $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe ./d3
 
 # Version bumping targets
 _bump-version:
@@ -108,24 +110,12 @@ version-major:
 	@echo "Bumping major version: $(VERSION) -> $(NEW_VERSION_MAJOR)"
 	@$(MAKE) NEW_VERSION=$(NEW_VERSION_MAJOR) _bump-version
 
-# Update Homebrew formula
-update-formula: build-all
-	@echo "Updating Homebrew formula with version $(VERSION)"
-	@./scripts/update_formula.sh
-	@echo "Formula updated."
-
-# Publish to Homebrew tap repository
-publish-tap: update-formula
-	@echo "Publishing to Homebrew tap repository with version $(VERSION)"
-	@./scripts/update_tap.sh
-	@echo "Tap repository updated."
-
 # Create a new release (builds binaries and creates tag)
 release: build-all test
 	@echo "Creating release v$(VERSION)"
 	@git tag -a v$(VERSION) -m "Release v$(VERSION)"
 	@echo "Tag created. Run 'make push-release' to push everything to GitHub."
-	@echo "After pushing the release, run 'make publish-tap' to publish to your Homebrew tap."
+	@echo "GitHub Actions will automatically build and publish the release."
 
 # Push new version
 push-release:
@@ -133,9 +123,8 @@ push-release:
 	@git push origin main && git push origin --tags
 
 # Full release workflow
-release-all: release push-release publish-tap
+release-all: release push-release
 	@echo "✅ Complete release process finished!"
 	@echo "Version $(VERSION) has been:"
 	@echo "  • Tagged and pushed to GitHub"
 	@echo "  • Released with binaries via GitHub Actions"
-	@echo "  • Published to Homebrew tap" 
