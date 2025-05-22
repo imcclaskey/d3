@@ -1,1 +1,0 @@
-init --refresh clears rules files even if you're in an active feature/phase
