@@ -15,40 +15,39 @@
 
 ## 🧠 What is d3?
 
-d3 is a CLI tool and Model Context Protocol (MCP) server designed to orchestrate intentional, AI-driven development workflows within environments like [Cursor](https://cursor.sh). By providing a structured, phase-based process managed via MCP tools, d3 acts as an agent control system, enhancing the AI pair programming experience. It guides the AI through distinct phases of software development: defining the problem, designing the solution, and delivering the code.
+d3 helps you control and guide AI assistants through a structured development process. Think of it as a framework that brings intentionality to your AI collaboration, steering conversations through three distinct phases:
+
+- **Define**: Clarify what you're building and why
+- **Design**: Plan how to build it
+- **Deliver**: Implement the solution
+
+By integrating with the Model Context Protocol (MCP) in tools like [Cursor](https://cursor.sh), d3 enables your AI assistant to stay "on rails" within each development phase, producing more focused and relevant results at each step.
 
 ### Core Benefits
 
-- **Structured AI Collaboration**: Move beyond chaotic, ad-hoc AI interactions to a predictable, phase-based workflow guided by the MCP server.
-- **Separation of Concerns**: Keep problem definition (`define`), solution planning (`design`), and implementation (`deliver`) distinct and focused within each feature.
-- **Optimized AI Context**: Provide the right context and rules to the AI agent at each phase via MCP for better, more relevant outcomes.
-- **Consistent Documentation**: Automatically generate and maintain technical documentation (`problem.md`, `plan.md`, `progress.yaml`) as you build.
+- **Guided AI Conversations**: Transform chaotic AI interactions into predictable, phase-based workflows where the AI knows exactly what type of assistance to provide.
+- **Context Management**: Keep your AI assistant focused on the right level of abstraction—requirements, architecture, or implementation—based on your current phase.
+- **Thought Before Action**: Encourage proper planning and design before jumping into code, resulting in more maintainable solutions.
+- **Living Documentation**: Automatically capture requirements, design decisions, and implementation progress as you collaborate with your AI assistant.
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- An MCP-compatible client (like [Cursor IDE](https://cursor.sh/))
-
 ### Installation
+
+#### Homebrew (macOS/Linux)
+
+```bash
+# Add the tap and install
+brew tap imcclaskey/tap
+brew install d3
+```
 
 #### Download from GitHub Releases
 
-1. Go to the [Releases page](https://github.com/imcclaskey/d3/releases) of this repository
-2. Download the binary for your platform:
-   - macOS/Intel: `d3-darwin-amd64`
-   - macOS/Apple Silicon: `d3-darwin-arm64`
-   - Linux/Intel: `d3-linux-amd64`
-   - Linux/ARM: `d3-linux-arm64`
-   - Windows: `d3-windows-amd64.exe`
-3. Make the binary executable (Linux/macOS):
-   ```bash
-   chmod +x d3-darwin-arm64  # Example for Mac with Apple Silicon
-   ```
-4. Move the binary to a location in your PATH (Linux/macOS):
-   ```bash
-   mv d3-darwin-arm64 /usr/local/bin/d3
-   ```
+Go to the [Releases page](https://github.com/imcclaskey/d3/releases) and download the binary for your platform:
+- macOS: `d3-darwin-amd64` (Intel) or `d3-darwin-arm64` (Apple Silicon)
+- Linux: `d3-linux-amd64` (Intel) or `d3-linux-arm64` (ARM)
+- Windows: `d3-windows-amd64.exe`
 
 ### Basic Workflow
 
@@ -60,21 +59,14 @@ d3 is a CLI tool and Model Context Protocol (MCP) server designed to orchestrate
     ```
 
 2. **Interact via MCP Client (e.g., Cursor)**:
-    - Use your AI assistant, configured with d3 tools, to interact with the server.
-    - **Create a Feature**: Ask the AI to "create a new d3 feature named 'my-feature'".
-        - *Alternatively, use the CLI:* `d3 feature create my-feature`
-        - Note: Creating a feature automatically enters it as the active context
-    - **Switch Features**: If multiple features exist, ask the AI to "enter 'other-feature'".
-        - *Alternatively, use the CLI:* `d3 feature enter other-feature`
-    - **Move Through Phases**: Instruct the AI to "move to the define phase", "move to the design phase", or "move to the deliver phase".
-        - *Alternatively, use the CLI:* `d3 phase move define`, `d3 phase move design`, or `d3 phase move deliver`
-    - **Exit Feature Context**: When done with a feature, ask the AI to "exit the current feature".
-        - *Alternatively, use the CLI:* `d3 exit`
+    - Create a Feature: Ask the AI to "create a new d3 feature named 'my-feature'"
+    - Move Through Phases: Ask the AI to "move to the design phase" or "move to the deliver phase"
+    - Exit Feature: When done, ask the AI to "exit the current feature"
 
 3. **Develop within Phases**:
-    - **Define**: Work with the AI to populate `problem.md` with requirements.
-    - **Design**: Collaborate with the AI to outline the technical plan in `plan.md`.
-    - **Deliver**: Generate code with the AI, guided by the design, tracking progress in `progress.yaml`.
+    - **Define**: Work with the AI to populate `problem.md` with requirements
+    - **Design**: Collaborate with the AI on the technical plan in `plan.md`
+    - **Deliver**: Generate code with the AI, tracking progress in `progress.yaml`
 
 ## 📋 Development Phases
 
@@ -92,33 +84,47 @@ Translate ideas into a technical blueprint. Design architecture, component inter
 
 Generate code following the technical plan, with progress tracked in `progress.yaml`. Focus exclusively on writing high-quality, maintainable code that aligns with the established plan.
 
-## 🛠️ Commands & MCP Tools
+## 🔧 Custom Workflow Templates
 
-d3 primarily interacts via its MCP server, but retains a few core CLI commands.
+d3 allows you to customize the workflow templates used in each phase:
+
+1. **Initialize with custom templates**:
+   ```bash
+   d3 init --custom-rules
+   ```
+   This creates a `.d3/rules/` directory with default templates you can modify.
+
+2. **Customize your templates** in the `.d3/rules/` directory:
+   - Edit templates to match your team's workflow
+   - Modify AI guidance for each phase
+   - Customize documentation structures
+
+3. **Automatic application**: d3 will use your custom templates for all phase transitions and project initializations, ensuring your workflow is consistent across your project.
+
+## 🛠️ Commands & MCP Tools
 
 ### CLI Commands
 
-| Command                       | Description                                                      |
-|-------------------------------|------------------------------------------------------------------|
-| `d3 init` | Initializes or updates the d3 project. `--clean` removes existing `.d3` and re-initializes. `--refresh` updates configuration in an existing project. |
-| `d3 feature create <n>`    | Create a new feature and set it as the current context           |
-| `d3 feature enter <n>`     | Enter a feature context, resuming its last known phase             |
-| `d3 phase move <p>`        | Move the current feature to a different phase (define, design, deliver) |
-| `d3 exit`                     | Exit the current feature context, clearing active feature state. |
-| `d3 feature delete <n>`    | Delete a feature and its associated content                       |
-| `d3 serve`                    | Start the d3 MCP server for AI interaction                       |
-| `d3 version`                  | Display the current version of d3                                |
+| Command                    | Description                                                 |
+|----------------------------|-------------------------------------------------------------|
+| `d3 init [--custom-rules]` | Initialize d3 project. Use `--custom-rules` to create editable template files |
+| `d3 feature create <name>` | Create a new feature and set it as the current context      |
+| `d3 feature enter <name>`  | Enter a feature context, resuming its last known phase      |
+| `d3 phase move <phase>`    | Move to a different phase (define, design, deliver)         |
+| `d3 exit`                  | Exit the current feature context                            |
+| `d3 feature delete <name>` | Delete a feature and its associated content                 |
+| `d3 serve`                 | Start the d3 MCP server for AI interaction                  |
+| `d3 version`               | Display the current version of d3                           |
 
 ### MCP Tool Functions (Used via AI Assistant)
 
-| MCP Function          | Description                                                        |
-|-----------------------|--------------------------------------------------------------------|
-| `d3_feature_create`   | Create a new feature and set it as current context                 |
-| `d3_feature_enter`    | Enter a feature context, resuming its last known phase             |
-| `d3_feature_exit`     | Exit the current feature context, clearing active feature state    |
-| `d3_feature_delete`   | Delete a feature and its associated content (requires confirmation)|
-| `d3_phase_move`       | Move to a different phase (`define`, `design`, `deliver`)          |
-| `d3_init`             | Provides CLI guidance for initializing d3                          |
+| MCP Function          | Description                                          |
+|-----------------------|------------------------------------------------------|
+| `d3_feature_create`   | Create a new feature and set it as current context   |
+| `d3_feature_enter`    | Enter a feature context, resuming its last phase     |
+| `d3_feature_exit`     | Exit the current feature context                     |
+| `d3_feature_delete`   | Delete a feature and its associated content          |
+| `d3_phase_move`       | Move to a different phase (define, design, deliver)  |
 
 ## 📂 Project Structure
 
@@ -133,7 +139,8 @@ project/
 │   │       │   └── plan.md      # Technical implementation plan
 │   │       ├── deliver/       # Deliver Phase artifacts
 │   │       │   └── progress.yaml# Implementation progress tracking
-│   │       └── .phase        # Stores the current phase for this feature (e.g., "define", "design")
+│   │       └── .phase        # Stores the current phase for this feature
+│   ├── rules/            # Custom workflow templates (when using --custom-rules)
 │   └── .feature           # Current active feature name (if any)
 ├── .cursor/              # Cursor IDE configuration
 │   └── rules/            # Client-side rules
@@ -143,36 +150,6 @@ project/
 └── .gitignore           # Will include entries for proper d3 file handling
 ```
 
-## 🔄 How It Works
-
-1. **Initialization**:
-   - Sets up the d3 environment with proper directory structure and configuration
-   - Configures `mcp.json` to register d3 tools with Cursor IDE
-2. **Server Start**: `d3 serve` launches the MCP server, listening for client connections.
-3. **Client Connection**: An AI assistant (like Cursor's) connects to the MCP server.
-4. **Feature Management**:
-   - Creates isolated workspaces for individual features with appropriate structure
-   - Manages feature context switching for AI agents and CLI operations
-   - Preserves feature state across sessions through simple file-based persistence
-5. **Phase Management**: MCP tools (like `d3_phase_move`) update the content of the current feature's `.phase` file and signal the client to adjust its behavior accordingly.
-6. **AI Guidance**: The AI assistant, aware of the current d3 feature and phase, provides contextually relevant assistance for the current phase's tasks and documentation.
-7. **Documentation**: Work done in each phase is captured in the corresponding files within the feature's phase directories.
-
 <p align="center">
   Built with ❤️ for better AI collaboration
 </p>
-
-## Install with Homebrew
-
-You can install d3 directly via Homebrew without adding a tap:
-
-```bash
-# Install directly from GitHub
-brew install imcclaskey/d3/d3
-```
-
-Or even more directly:
-
-```bash
-brew install https://raw.githubusercontent.com/imcclaskey/d3/main/d3.rb
-```
